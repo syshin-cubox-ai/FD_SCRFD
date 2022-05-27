@@ -1,6 +1,6 @@
 # Project ignores
 .idea/
-data/
+data/retinaface/
 onnx/
 work_dirs/
 wouts/
