@@ -352,5 +352,5 @@ if __name__ == '__main__':
                     cv2.circle(img, tuple(kp) , 1, (0,0,255) , 2)
         filename = img_path.split('/')[-1]
         print('output:', filename)
-        os.makedirs(os.path.join('tests', 'outputs'), exist_ok=True)
-        cv2.imwrite(os.path.join('tests', 'outputs', filename), img)
+        os.makedirs(os.path.join('tests', 'output'), exist_ok=True)
+        cv2.imwrite(os.path.join('tests', 'output', filename), img)
