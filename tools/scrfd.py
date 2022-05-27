@@ -333,11 +333,11 @@ if __name__ == '__main__':
         img = cv2.imread(img_path)
         assert img is not None
 
-        for _ in range(1):
-            inference_time = time.time()
-            bboxes, kpss = detector.detect(img, 0.5, input_size=(640, 640))
-            inference_time = time.time() - inference_time
-            print('inference time (ms):', inference_time * 1000)
+        inference_time = time.time()
+        bboxes, kpss = detector.detect(img, 0.5, input_size=(640, 640))
+        inference_time = time.time() - inference_time
+        print(f'inference time (ms): {inference_time * 1000:.2f}')
+
         print(img_path, bboxes.shape)
         if kpss is not None:
             print(kpss.shape)
@@ -352,5 +352,6 @@ if __name__ == '__main__':
                     cv2.circle(img, tuple(kp) , 1, (0,0,255) , 2)
         filename = img_path.split('/')[-1]
         print('output:', filename)
+        print()
         os.makedirs(os.path.join('tests', 'output'), exist_ok=True)
         cv2.imwrite(os.path.join('tests', 'output', filename), img)
