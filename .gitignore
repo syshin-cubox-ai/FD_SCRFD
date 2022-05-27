@@ -1,6 +1,7 @@
 # Project ignores
 .idea/
 data/
+onnx/
 work_dirs/
 wouts/
 
