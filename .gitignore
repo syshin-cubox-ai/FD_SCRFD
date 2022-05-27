@@ -2,6 +2,7 @@
 .idea/
 data/retinaface/
 onnx/
+tests/
 work_dirs/
 wouts/
 
