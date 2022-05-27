@@ -5,7 +5,10 @@
 # @Function      : 
 
 from __future__ import division
+
+import argparse
 import datetime
+import glob
 import numpy as np
 import onnx
 import onnxruntime
@@ -304,14 +307,29 @@ def scrfd_2p5gkps(**kwargs):
     return get_scrfd("2p5gkps", download=True, **kwargs)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model-file', type=str, help='onnx model file path')
+    parser.add_argument('--source', type=str, help='image path or directory')
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == '__main__':
-    import glob
-    #detector = SCRFD(model_file='./det.onnx')
-    detector = SCRFD(model_file='./det.onnx')
+    args = parse_args()
+    assert os.path.exists(args.source), 'source is not exists.'
+    if os.path.isdir(args.source):
+        img_paths = glob.glob(os.path.join(args.source, '*'))
+    elif os.path.isfile(args.source):
+        img_paths = [args.source]
+    else:
+        raise ValueError('Wrong source.')
+
+    detector = SCRFD(model_file=args.model_file)
     detector.prepare(-1)
-    img_paths = ['tests/data/t3.jpg']
     for img_path in img_paths:
         img = cv2.imread(img_path)
+        assert img is not None
 
         for _ in range(1):
             ta = datetime.datetime.now()
