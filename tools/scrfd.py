@@ -309,7 +309,7 @@ def scrfd_2p5gkps(**kwargs):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('model-file', type=str, help='onnx model file path')
+    parser.add_argument('--model-file', type=str, help='onnx model file path')
     parser.add_argument('--source', type=str, help='image path or directory')
     args = parser.parse_args()
     return args
