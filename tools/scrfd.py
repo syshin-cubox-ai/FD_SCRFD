@@ -317,7 +317,7 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    assert os.path.exists(args.source), 'source is not exists.'
+    assert os.path.exists(args.source), f'source is not exists: {args.source}'
     if os.path.isdir(args.source):
         img_paths = glob.glob(os.path.join(args.source, '*'))
     elif os.path.isfile(args.source):
