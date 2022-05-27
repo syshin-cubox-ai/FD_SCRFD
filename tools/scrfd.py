@@ -7,15 +7,16 @@
 from __future__ import division
 
 import argparse
-import datetime
 import glob
+import os
+import os.path as osp
+import time
+
+import cv2
 import numpy as np
 import onnx
 import onnxruntime
-import os
-import os.path as osp
-import cv2
-import sys
+
 
 def softmax(z):
     assert len(z.shape) == 2
@@ -333,11 +334,10 @@ if __name__ == '__main__':
         assert img is not None
 
         for _ in range(1):
-            ta = datetime.datetime.now()
-            bboxes, kpss = detector.detect(img, 0.5, input_size = (640, 640))
-            #bboxes, kpss = detector.detect(img, 0.5)
-            tb = datetime.datetime.now()
-            print('all cost:', (tb-ta).total_seconds()*1000)
+            inference_time = time.time()
+            bboxes, kpss = detector.detect(img, 0.5, input_size=(640, 640))
+            inference_time = time.time() - inference_time
+            print('inference time (ms):', inference_time * 1000)
         print(img_path, bboxes.shape)
         if kpss is not None:
             print(kpss.shape)
