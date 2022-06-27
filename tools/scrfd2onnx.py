@@ -79,7 +79,7 @@ def pytorch2onnx(
                 model, check = simplify(model, input_shapes=input_shapes, dynamic_input_shape=True)
             else:
                 model, check = simplify(model)
-            assert check, "Simplified ONNX model could not be validated"
+            assert check, 'Simplified ONNX model could not be validated'
         onnx.save(model, output_file)
         os.remove(ori_output_file)
     print(f'Successfully exported ONNX model: {output_file}')
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     parser.add_argument('opset-version', type=int, default=11)
     parser.add_argument('shape', type=int, default=[-1, -1], help='input image size')
     parser.add_argument('mean', type=float, default=[127.5, 127.5, 127.5], help='used for preprocess input data')
-    parser.add_argument('--std', type=float, default=[128.0, 128.0, 128.0], help='used for preprocess input data')
+    parser.add_argument('std', type=float, default=[128.0, 128.0, 128.0], help='used for preprocess input data')
     parser.add_argument('simplify', type=bool, default=True, help='use onnx-simplifier')
     args = parser.parse_args()
 
@@ -119,16 +119,15 @@ if __name__ == '__main__':
     normalize_cfg = {'mean': args.mean, 'std': args.std}
 
     if len(args.output_file) == 0:
-        output_dir = os.path.join(os.path.dirname(__file__), '../onnx')
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        cfg_name = args.config.split('/')[-1]
+        output_dir = '../onnx'
+        os.makedirs(output_dir, exist_ok=True)
+        cfg_name = os.path.basename(args.config)
         pos = cfg_name.rfind('.')
         cfg_name = cfg_name[:pos]
         if dynamic:
-            args.output_file = os.path.join(output_dir, "%s.onnx" % cfg_name)
+            args.output_file = os.path.join(output_dir, f'{cfg_name}.onnx')
         else:
-            args.output_file = os.path.join(output_dir, "%s_shape%dx%d.onnx" % (cfg_name, input_shape[2], input_shape[3]))
+            args.output_file = os.path.join(output_dir, f'{cfg_name}_shape{input_shape[2]}x{input_shape[3]}.onnx')
 
     # convert model to onnx file
     pytorch2onnx(
