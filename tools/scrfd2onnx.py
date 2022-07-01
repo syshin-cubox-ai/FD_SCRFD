@@ -2,6 +2,7 @@ import argparse
 import os
 
 import onnx
+import onnxsim
 import torch
 
 from mmdet.core import generate_inputs_and_wrap_model
@@ -18,7 +19,7 @@ if __name__ == '__main__':
 
     # Create model and tensor data
     input_config = {
-        'input_shape': (1, 3, 640, 640),
+        'input_shape': [1, 3, 640, 640],
         'input_path': 'tests/data/t1.jpg',
         'normalize_cfg': {'mean': [127.5, 127.5, 127.5], 'std': [128.0, 128.0, 128.0]}
     }
@@ -53,6 +54,7 @@ if __name__ == '__main__':
     else:
         dynamic_axes = None
 
+    # Export model into ONNX format
     torch.onnx.export(
         model,
         input_data,
@@ -63,14 +65,14 @@ if __name__ == '__main__':
         dynamic_axes=dynamic_axes,
     )
 
+    # Simplify ONNX model
     if args.simplify:
-        from onnxsim import simplify
         model = onnx.load(ori_output_file)
         if args.dynamic:
-            input_shapes = {model.graph.input[0].name: list(input_config['input_shape'])}
-            model, check = simplify(model, input_shapes=input_shapes, dynamic_input_shape=True)
+            input_shapes = {model.graph.input[0].name: input_config['input_shape']}
+            model, check = onnxsim.simplify(model, input_shapes=input_shapes, dynamic_input_shape=True)
         else:
-            model, check = simplify(model)
+            model, check = onnxsim.simplify(model)
         assert check, 'Simplified ONNX model could not be validated'
         onnx.save(model, output_file)
         os.remove(ori_output_file)
