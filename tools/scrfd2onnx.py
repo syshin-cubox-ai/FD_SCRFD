@@ -56,8 +56,8 @@ def pytorch2onnx(
     # Define dynamic axes for export
     dynamic_axes = None
     if dynamic:
-        dynamic_axes = {out: {0: '?', 1: '?'} for out in output_names}
-        dynamic_axes[input_names[0]] = {0: '?', 2: '?', 3: '?'}
+        dynamic_axes = {out: {0: 'N', 1: 'C'} for out in output_names}
+        dynamic_axes[input_names[0]] = {0: 'N', 2: 'H', 3: 'W'}
 
     torch.onnx.export(
         model,
