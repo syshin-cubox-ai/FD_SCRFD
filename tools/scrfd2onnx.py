@@ -34,11 +34,6 @@ if __name__ == '__main__':
     else:
         output_file = os.path.join(output_dir, f'{cfg_name}_static_axes.onnx')
 
-    if args.simplify:
-        ori_output_file = output_file.replace('.onnx', '_ori.onnx')
-    else:
-        ori_output_file = output_file
-
     # Define input and output names
     input_names = ['input.1']
     output_names = ['score_8', 'score_16', 'score_32', 'bbox_8', 'bbox_16', 'bbox_32']
@@ -58,7 +53,7 @@ if __name__ == '__main__':
     torch.onnx.export(
         model,
         input_data,
-        ori_output_file,
+        output_file,
         input_names=input_names,
         output_names=output_names,
         opset_version=11,  # only work with version 11
@@ -67,7 +62,7 @@ if __name__ == '__main__':
 
     # Simplify ONNX model
     if args.simplify:
-        model = onnx.load(ori_output_file)
+        model = onnx.load(output_file)
         if args.dynamic:
             input_shapes = {model.graph.input[0].name: input_config['input_shape']}
             model, check = onnxsim.simplify(model, input_shapes=input_shapes, dynamic_input_shape=True)
@@ -75,5 +70,4 @@ if __name__ == '__main__':
             model, check = onnxsim.simplify(model)
         assert check, 'Simplified ONNX model could not be validated'
         onnx.save(model, output_file)
-        os.remove(ori_output_file)
     print(f'Successfully exported ONNX model: {output_file}')
