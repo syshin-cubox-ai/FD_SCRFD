@@ -113,6 +113,8 @@ def main():
         gts_easy, gts_medium, gts_hard = get_widerface_gts(gt_path)
         assign_stat = [0, 0]
         gts_size = []
+    else:
+        gts_easy, gts_medium, gts_hard, assign_stat, gts_size = None, None, None, None, None
     model = MMDataParallel(model, device_ids=[0])
     model.eval()
     results = {}
@@ -161,7 +163,6 @@ def main():
             assert args.mode == 0
             input_height, input_width = 640, 640
             gt_hard = gts_hard[event_name][img_name]
-            # print(event_name, img_name, gt_hard.shape)
             gt_bboxes = gt_hard * det_scale
             bbox_width = gt_bboxes[:, 2] - gt_bboxes[:, 0]
             bbox_height = gt_bboxes[:, 3] - gt_bboxes[:, 1]
@@ -198,7 +199,6 @@ def main():
             gt_dist = dist.max(axis=0)
             gt_dist = gt_dist / gt_size
             center_thres = 0.01
-            # center_thres = -0.25
             gt_cover_inds = np.where(gt_dist > center_thres)[0]
             num_assigned = len(gt_cover_inds)
             assign_stat[0] += num_gts
