@@ -3,43 +3,33 @@ import os
 
 import mmcv
 import numpy as np
-import torch
 import torch.backends.cudnn
 from mmcv import Config
 from mmcv.parallel import MMDataParallel
 from mmcv.runner import load_checkpoint
+from mmcv.utils import import_modules_from_strings
 
 from mmdet.core.evaluation import wider_evaluation, get_widerface_gts
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
 from mmdet.models import build_detector
 
-
-def parse_args():
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='MMDet test (and eval) a model')
     parser.add_argument('config', help='test config file path')
     parser.add_argument('checkpoint', help='checkpoint file')
     parser.add_argument('--out', default='wout', help='output folder')
-    parser.add_argument('--show', action='store_true', help='show results')
     parser.add_argument('--save-preds', action='store_true', help='save results')
     parser.add_argument('--show-assign', action='store_true', help='show bbox assign')
     parser.add_argument('--debug', action='store_true', help='debug flag')
-    parser.add_argument('--show-dir', help='directory where painted images will be saved')
-    parser.add_argument('--show-score-thr', type=float, default=0.3, help='score threshold')
     parser.add_argument('--thr', type=float, default=0.02, help='score threshold')
     parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument('--mode', type=int, default=0)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
-    return args
-
-
-def main():
-    args = parse_args()
 
     cfg = Config.fromfile(args.config)
     if cfg.get('custom_imports', None):
-        from mmcv.utils import import_modules_from_strings
         import_modules_from_strings(**cfg['custom_imports'])
     # set cudnn_benchmark
     if cfg.get('cudnn_benchmark', False):
@@ -185,8 +175,10 @@ def main():
 
             num_gts = gt_bboxes.shape[0]
             num_anchors = anchor_cx.shape[0]
-            anchor_cx = np.broadcast_to(anchor_cx.reshape((1, -1)), (num_gts, num_anchors)).reshape(num_anchors, num_gts)
-            anchor_cy = np.broadcast_to(anchor_cy.reshape((1, -1)), (num_gts, num_anchors)).reshape(num_anchors, num_gts)
+            anchor_cx = np.broadcast_to(anchor_cx.reshape((1, -1)), (num_gts, num_anchors))
+            anchor_cx = anchor_cx.reshape(num_anchors, num_gts)
+            anchor_cy = np.broadcast_to(anchor_cy.reshape((1, -1)), (num_gts, num_anchors))
+            anchor_cy = anchor_cy.reshape(num_anchors, num_gts)
             gt_x1 = gt_bboxes[:, 0]
             gt_y1 = gt_bboxes[:, 1]
             gt_x2 = gt_bboxes[:, 2]
@@ -216,7 +208,3 @@ def main():
         gts_size = np.sort(gts_size)
         assert len(gts_size) == assign_stat[0]
         print(gts_size[assign_stat[0] // 2])
-
-
-if __name__ == '__main__':
-    main()
