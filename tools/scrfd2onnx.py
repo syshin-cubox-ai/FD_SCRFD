@@ -32,7 +32,7 @@ if __name__ == '__main__':
     if args.dynamic:
         output_file = os.path.join(output_dir, f'{cfg_name}.onnx')
     else:
-        output_file = os.path.join(output_dir, f'{cfg_name}_static_axes.onnx')
+        output_file = os.path.join(output_dir, f'{cfg_name}_static_axis.onnx')
 
     # Define input and output names
     input_names = ['input.1']
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
     # Define dynamic axes for export
     if args.dynamic:
-        dynamic_axes = {out: {0: 'N', 1: 'C'} for out in output_names}
+        dynamic_axes = {name: {0: 'N', 1: 'C'} for name in output_names}
         dynamic_axes[input_names[0]] = {0: 'N', 2: 'H', 3: 'W'}
     else:
         dynamic_axes = None
