@@ -10,24 +10,24 @@ import torch
 from mmdet.core import generate_inputs_and_wrap_model
 
 
+def to_numpy(tensor):
+    return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+
+
 def compare_torch_onnx_model(torch_model, onnx_path, input_data):
-    ort_session = onnxruntime.InferenceSession(onnx_path, providers=[
+    session = onnxruntime.InferenceSession(onnx_path, providers=[
         # 'CUDAExecutionProvider',
         'CPUExecutionProvider'
     ])
 
-    def to_numpy(tensor):
-        return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+    onnx_inputs = {session.get_inputs()[0].name: to_numpy(input_data[0])}
+    onnx_ouputs = session.run(None, onnx_inputs)
 
-    # compute ONNX Runtime output prediction
-    ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(input_data[0])}
-    ort_outs = ort_session.run(None, ort_inputs)
+    torch_outputs = torch_model(input_data, force_onnx_export=True)
+    torch_outputs = [to_numpy(out) for out in torch_outputs]
 
-    # compare ONNX Runtime and PyTorch results
-    torch_outs = torch_model(input_data, force_onnx_export=True)
-    torch_outs = [to_numpy(out) for out in torch_outs]
-
-    np.testing.assert_allclose(torch_outs, ort_outs, rtol=1e-03, atol=1e-05)
+    for onnx_ouput, torch_output in zip(onnx_ouputs, torch_outputs):
+        np.testing.assert_allclose(onnx_ouput, torch_output, rtol=1e-03, atol=1e-05)
     print("Exported model has been tested with ONNXRuntime, and the result looks good!")
 
 
