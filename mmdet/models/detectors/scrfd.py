@@ -47,7 +47,7 @@ class SCRFD(SingleStageDetector):
                                               gt_labels, gt_keypointss, gt_bboxes_ignore)
         return losses
 
-    def simple_test(self, img, img_metas, rescale=False):
+    def simple_test(self, img, img_metas, rescale=False, force_onnx_export=False):
         """Test function without test time augmentation.
 
         Args:
@@ -62,9 +62,9 @@ class SCRFD(SingleStageDetector):
                 corresponds to each class.
         """
         x = self.extract_feat(img)
-        outs = self.bbox_head(x)
+        outs = self.bbox_head(x, force_onnx_export)
 
-        if torch.onnx.is_in_onnx_export():
+        if torch.onnx.is_in_onnx_export() or force_onnx_export:
             cls_score, bbox_pred, kps_pred = outs
             if self.bbox_head.use_kps:
                 return cls_score, bbox_pred, kps_pred
