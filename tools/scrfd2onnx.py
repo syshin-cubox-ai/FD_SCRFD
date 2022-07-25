@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # Create model and tensor data
     input_config = {
         'input_shape': [1, 3, 640, 640],
-        'input_path': 'tests/data/t1.jpg',
+        'input_path': 'tests/data/2.jpg',
         'normalize_cfg': {'mean': [127.5, 127.5, 127.5], 'std': [128.0, 128.0, 128.0]}
     }
     model, input_data = generate_inputs_and_wrap_model(args.config, args.checkpoint, input_config)
