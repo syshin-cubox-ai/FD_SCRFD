@@ -64,8 +64,8 @@ if __name__ == '__main__':
     if args.simplify:
         model = onnx.load(output_file)
         if args.dynamic:
-            input_shapes = {model.graph.input[0].name: input_config['input_shape']}
-            model, check = onnxsim.simplify(model, input_shapes=input_shapes, dynamic_input_shape=True)
+            input_shape = {model.graph.input[0].name: input_config['input_shape']}
+            model, check = onnxsim.simplify(model, overwrite_input_shapes=input_shape, test_input_shapes=input_shape)
         else:
             model, check = onnxsim.simplify(model)
         assert check, 'Simplified ONNX model could not be validated'
