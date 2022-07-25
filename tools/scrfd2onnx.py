@@ -24,9 +24,10 @@ def compare_torch_onnx_model(torch_model, onnx_path, input_data):
     ort_outs = ort_session.run(None, ort_inputs)
 
     # compare ONNX Runtime and PyTorch results
-    torch_result = torch_model(input_data, force_onnx_export=True)
+    torch_outs = torch_model(input_data, force_onnx_export=True)
+    torch_outs = [to_numpy(out) for out in torch_outs]
 
-    np.testing.assert_allclose(torch_result, ort_outs, rtol=1e-03, atol=1e-05)
+    np.testing.assert_allclose(torch_outs, ort_outs, rtol=1e-03, atol=1e-05)
     print("Exported model has been tested with ONNXRuntime, and the result looks good!")
 
 
