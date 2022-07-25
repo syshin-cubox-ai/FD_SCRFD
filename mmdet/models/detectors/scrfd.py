@@ -14,8 +14,7 @@ class SCRFD(SingleStageDetector):
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
-        super(SCRFD, self).__init__(backbone, neck, bbox_head, train_cfg,
-                                  test_cfg, pretrained)
+        super(SCRFD, self).__init__(backbone, neck, bbox_head, train_cfg, test_cfg, pretrained)
 
     def forward_train(self,
                       img,
@@ -64,7 +63,7 @@ class SCRFD(SingleStageDetector):
         """
         x = self.extract_feat(img)
         outs = self.bbox_head(x)
-        #print(len(outs))
+        # print(len(outs))
         if torch.onnx.is_in_onnx_export():
             print('single_stage.py in-onnx-export')
             print(outs.__class__)
@@ -73,18 +72,18 @@ class SCRFD(SingleStageDetector):
                 print(c.shape)
             for c in bbox_pred:
                 print(c.shape)
-            #print(outs[0].shape, outs[1].shape)
+            # print(outs[0].shape, outs[1].shape)
             if self.bbox_head.use_kps:
                 for c in kps_pred:
                     print(c.shape)
-                return (cls_score, bbox_pred, kps_pred)
+                return cls_score, bbox_pred, kps_pred
             else:
-                return (cls_score, bbox_pred)
-            #return outs
+                return cls_score, bbox_pred
+            # return outs
         bbox_list = self.bbox_head.get_bboxes(
             *outs, img_metas, rescale=rescale)
         # skip post-processing when exporting to ONNX
-        #if torch.onnx.is_in_onnx_export():
+        # if torch.onnx.is_in_onnx_export():
         #    return bbox_list
 
         bbox_results = [
@@ -97,4 +96,3 @@ class SCRFD(SingleStageDetector):
         x = self.extract_feat(img)
         outs = self.bbox_head(x)
         return outs
-
