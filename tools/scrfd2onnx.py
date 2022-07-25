@@ -28,7 +28,7 @@ def compare_torch_onnx_model(torch_model, onnx_path, input_data):
 
     for onnx_ouput, torch_output in zip(onnx_ouputs, torch_outputs):
         np.testing.assert_allclose(onnx_ouput, torch_output, rtol=1e-03, atol=1e-05)
-    print("Exported model has been tested with ONNXRuntime, and the result looks good!")
+    print('The outputs of the onnx model and the torch model is the same.')
 
 
 if __name__ == '__main__':
