@@ -67,9 +67,9 @@ class SCRFD(SingleStageDetector):
         if torch.onnx.is_in_onnx_export() or force_onnx_export:
             cls_score, bbox_pred, kps_pred = outs
             if self.bbox_head.use_kps:
-                return cls_score, bbox_pred, kps_pred
+                return cls_score + bbox_pred + kps_pred
             else:
-                return cls_score, bbox_pred
+                return cls_score + bbox_pred
 
         bbox_list = self.bbox_head.get_bboxes(
             *outs, img_metas, rescale=rescale)
