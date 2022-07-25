@@ -1,11 +1,33 @@
 import argparse
 import os
 
+import numpy as np
 import onnx
+import onnxruntime
 import onnxsim
 import torch
 
 from mmdet.core import generate_inputs_and_wrap_model
+
+
+def compare_torch_onnx_model(torch_model, onnx_path, input_data):
+    ort_session = onnxruntime.InferenceSession(onnx_path, providers=[
+        # 'CUDAExecutionProvider',
+        'CPUExecutionProvider'
+    ])
+
+    def to_numpy(tensor):
+        return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+
+    # compute ONNX Runtime output prediction
+    ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(input_data[0])}
+    ort_outs = ort_session.run(None, ort_inputs)
+
+    # compare ONNX Runtime and PyTorch results
+    torch_result = torch_model(input_data, force_onnx_export=True)
+
+    np.testing.assert_allclose(torch_result, ort_outs, rtol=1e-03, atol=1e-05)
+    print("Exported model has been tested with ONNXRuntime, and the result looks good!")
 
 
 if __name__ == '__main__':
@@ -30,9 +52,9 @@ if __name__ == '__main__':
     os.makedirs(output_dir, exist_ok=True)
     cfg_name = os.path.splitext(os.path.basename(args.config))[0]
     if args.dynamic:
-        output_file = os.path.join(output_dir, f'{cfg_name}.onnx')
+        output_path = os.path.join(output_dir, f'{cfg_name}.onnx')
     else:
-        output_file = os.path.join(output_dir, f'{cfg_name}_static_axis.onnx')
+        output_path = os.path.join(output_dir, f'{cfg_name}_static_axis.onnx')
 
     # Define input and output names
     input_names = ['input.1']
@@ -53,21 +75,23 @@ if __name__ == '__main__':
     torch.onnx.export(
         model,
         input_data,
-        output_file,
+        output_path,
         input_names=input_names,
         output_names=output_names,
         opset_version=11,  # only work with version 11
         dynamic_axes=dynamic_axes,
     )
 
+    compare_torch_onnx_model(model, output_path, input_data)
+
     # Simplify ONNX model
     if args.simplify:
-        model = onnx.load(output_file)
+        model = onnx.load(output_path)
         if args.dynamic:
             input_shape = {model.graph.input[0].name: input_config['input_shape']}
             model, check = onnxsim.simplify(model, overwrite_input_shapes=input_shape, test_input_shapes=input_shape)
         else:
             model, check = onnxsim.simplify(model)
         assert check, 'Simplified ONNX model could not be validated'
-        onnx.save(model, output_file)
-    print(f'Successfully exported ONNX model: {output_file}')
+        onnx.save(model, output_path)
+    print(f'Successfully exported ONNX model: {output_path}')
