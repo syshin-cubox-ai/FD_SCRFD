@@ -58,7 +58,7 @@ if __name__ == '__main__':
         output_path = os.path.join(output_dir, f'{cfg_name}_static_axis.onnx')
 
     # Define input and output names
-    input_names = ['input.1']
+    input_names = ['input_1']
     output_names = ['score_8', 'score_16', 'score_32', 'bbox_8', 'bbox_16', 'bbox_32']
 
     # If model graph contains keypoints strides add keypoints to outputs
