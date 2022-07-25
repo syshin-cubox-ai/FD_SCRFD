@@ -10,25 +10,8 @@ import torch
 from mmdet.core import generate_inputs_and_wrap_model
 
 
-def to_numpy(tensor):
+def to_numpy(tensor: torch.Tensor) -> np.ndarray:
     return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
-
-
-def compare_torch_onnx_model(torch_model, onnx_path, input_data):
-    session = onnxruntime.InferenceSession(onnx_path, providers=[
-        # 'CUDAExecutionProvider',
-        'CPUExecutionProvider'
-    ])
-
-    onnx_inputs = {session.get_inputs()[0].name: to_numpy(input_data[0])}
-    onnx_ouputs = session.run(None, onnx_inputs)
-
-    torch_outputs = torch_model(input_data, force_onnx_export=True)
-    torch_outputs = [to_numpy(out) for out in torch_outputs]
-
-    for onnx_ouput, torch_output in zip(onnx_ouputs, torch_outputs):
-        np.testing.assert_allclose(onnx_ouput, torch_output, rtol=1e-03, atol=1e-05)
-    print('The outputs of the onnx model and the torch model is the same.')
 
 
 if __name__ == '__main__':
@@ -83,7 +66,16 @@ if __name__ == '__main__':
         dynamic_axes=dynamic_axes,
     )
 
-    compare_torch_onnx_model(model, output_path, input_data)
+    # Compare the exported onnx model with the torch model
+    session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
+    onnx_inputs = {name: to_numpy(data) for name, data in zip(input_names, input_data)}
+    onnx_ouputs = session.run(None, onnx_inputs)
+
+    torch_outputs = model(input_data, force_onnx_export=True)
+    torch_outputs = [to_numpy(out) for out in torch_outputs]
+
+    for onnx_ouput, torch_output in zip(onnx_ouputs, torch_outputs):
+        np.testing.assert_allclose(onnx_ouput, torch_output, rtol=1e-03, atol=1e-05)
 
     # Simplify ONNX model
     if args.simplify:

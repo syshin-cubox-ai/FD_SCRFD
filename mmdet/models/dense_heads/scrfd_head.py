@@ -311,12 +311,10 @@ class SCRFDHead(AnchorHead):
 
         if torch.onnx.is_in_onnx_export() or self.force_onnx_export:
             assert not self.use_dfl
-            print(f'onnx export before shape: score={cls_score.shape}, bbox={bbox_pred.shape}, kps={kps_pred.shape}')
             batch_size = cls_score.shape[0]
             cls_score = cls_score.permute(0, 2, 3, 1).reshape(batch_size, -1, self.cls_out_channels).sigmoid()
             bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(batch_size, -1, 4)
             kps_pred = kps_pred.permute(0, 2, 3, 1).reshape(batch_size, -1, 10)
-            print(f'onnx export after shape: score={cls_score.shape}, bbox={bbox_pred.shape}, kps={kps_pred.shape}')
 
         return cls_score, bbox_pred, kps_pred
 

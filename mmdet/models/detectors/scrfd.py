@@ -62,7 +62,7 @@ class SCRFD(SingleStageDetector):
                 corresponds to each class.
         """
         x = self.extract_feat(img)
-        outs = self.bbox_head(x, force_onnx_export)
+        outs = self.bbox_head(x, force_onnx_export)  # scrfd_head.py의 forward_single() 참조
 
         if torch.onnx.is_in_onnx_export() or force_onnx_export:
             cls_score, bbox_pred, kps_pred = outs
