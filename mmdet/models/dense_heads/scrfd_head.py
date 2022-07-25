@@ -379,36 +379,6 @@ class SCRFDHead(AnchorHead):
             proposal_list = self.get_bboxes(*outs, img_metas, cfg=proposal_cfg)
             return losses, proposal_list
 
-    def get_anchors(self, featmap_sizes, img_metas, device='cuda'):
-        """Get anchors according to feature map sizes.
-
-        Args:
-            featmap_sizes (list[tuple]): Multi-level feature map sizes.
-            img_metas (list[dict]): Image meta info.
-            device (torch.device | str): Device for returned tensors
-
-        Returns:
-            tuple:
-                anchor_list (list[Tensor]): Anchors of each image.
-                valid_flag_list (list[Tensor]): Valid flags of each image.
-        """
-        num_imgs = len(img_metas)
-
-        # since feature map sizes of all images are the same, we only compute
-        # anchors for one time
-        multi_level_anchors = self.anchor_generator.grid_anchors(
-            featmap_sizes, device)
-        anchor_list = [multi_level_anchors for _ in range(num_imgs)]
-
-        # for each image, we compute valid flags of multi level anchors
-        valid_flag_list = []
-        for img_id, img_meta in enumerate(img_metas):
-            multi_level_flags = self.anchor_generator.valid_flags(
-                featmap_sizes, img_meta['pad_shape'], device)
-            valid_flag_list.append(multi_level_flags)
-
-        return anchor_list, valid_flag_list
-
     def anchor_center(self, anchors):
         """Get anchor centers from anchors.
 
@@ -658,96 +628,6 @@ class SCRFDHead(AnchorHead):
         return losses
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds', 'kps_preds'))
-    def get_bboxes(self,
-                   cls_scores,
-                   bbox_preds,
-                   kps_preds,
-                   img_metas,
-                   cfg=None,
-                   rescale=False,
-                   with_nms=True):
-        """Transform network output for a batch into bbox predictions.
-
-        Args:
-            cls_scores (list[Tensor]): Box scores for each scale level
-                Has shape (N, num_anchors * num_classes, H, W)
-            bbox_preds (list[Tensor]): Box energies / deltas for each scale
-                level with shape (N, num_anchors * 4, H, W)
-            img_metas (list[dict]): Meta information of each image, e.g.,
-                image size, scaling factor, etc.
-            cfg (mmcv.Config | None): Test / postprocessing configuration,
-                if None, test_cfg would be used
-            rescale (bool): If True, return boxes in original image space.
-                Default: False.
-            with_nms (bool): If True, do nms before return boxes.
-                Default: True.
-
-        Returns:
-            list[tuple[Tensor, Tensor]]: Each item in result_list is 2-tuple.
-                The first item is an (n, 5) tensor, where the first 4 columns
-                are bounding box positions (tl_x, tl_y, br_x, br_y) and the
-                5-th column is a score between 0 and 1. The second item is a
-                (n,) tensor where each item is the predicted class labelof the
-                corresponding box.
-
-        Example:
-            >>> import mmcv
-            >>> self = AnchorHead(
-            >>>     num_classes=9,
-            >>>     in_channels=1,
-            >>>     anchor_generator=dict(
-            >>>         type='AnchorGenerator',
-            >>>         scales=[8],
-            >>>         ratios=[0.5, 1.0, 2.0],
-            >>>         strides=[4,]))
-            >>> img_metas = [{'img_shape': (32, 32, 3), 'scale_factor': 1}]
-            >>> cfg = mmcv.Config(dict(
-            >>>     score_thr=0.00,
-            >>>     nms=dict(type='nms', iou_thr=1.0),
-            >>>     max_per_img=10))
-            >>> feat = torch.rand(1, 1, 3, 3)
-            >>> cls_score, bbox_pred = self.forward_single(feat)
-            >>> # note the input lists are over different levels, not images
-            >>> cls_scores, bbox_preds = [cls_score], [bbox_pred]
-            >>> result_list = self.get_bboxes(cls_scores, bbox_preds,
-            >>>                               img_metas, cfg)
-            >>> det_bboxes, det_labels = result_list[0]
-            >>> assert len(result_list) == 1
-            >>> assert det_bboxes.shape[1] == 5
-            >>> assert len(det_bboxes) == len(det_labels) == cfg.max_per_img
-        """
-        assert len(cls_scores) == len(bbox_preds)
-        num_levels = len(cls_scores)
-
-        device = cls_scores[0].device
-        featmap_sizes = [cls_scores[i].shape[-2:] for i in range(num_levels)]
-        mlvl_anchors = self.anchor_generator.grid_anchors(
-            featmap_sizes, device=device)
-
-        result_list = []
-        for img_id in range(len(img_metas)):
-            cls_score_list = [
-                cls_scores[i][img_id].detach() for i in range(num_levels)
-            ]
-            bbox_pred_list = [
-                bbox_preds[i][img_id].detach() for i in range(num_levels)
-            ]
-            img_shape = img_metas[img_id]['img_shape']
-            scale_factor = img_metas[img_id]['scale_factor']
-            if with_nms:
-                # some heads don't support with_nms argument
-                proposals = self._get_bboxes_single(cls_score_list,
-                                                    bbox_pred_list,
-                                                    mlvl_anchors, img_shape,
-                                                    scale_factor, cfg, rescale)
-            else:
-                proposals = self._get_bboxes_single(cls_score_list,
-                                                    bbox_pred_list,
-                                                    mlvl_anchors, img_shape,
-                                                    scale_factor, cfg, rescale,
-                                                    with_nms)
-            result_list.append(proposals)
-        return result_list
 
     def _get_bboxes_single(self,
                            cls_scores,
@@ -1043,21 +923,3 @@ class SCRFDHead(AnchorHead):
             int(flags.sum()) for flags in split_inside_flags
         ]
         return num_level_anchors_inside
-
-    def aug_test(self, feats, img_metas, rescale=False):
-        """Test function with test time augmentation.
-
-        Args:
-            feats (list[Tensor]): the outer list indicates test-time
-                augmentations and inner Tensor should have a shape NxCxHxW,
-                which contains features for all images in the batch.
-            img_metas (list[list[dict]]): the outer list indicates test-time
-                augs (multiscale, flip, etc.) and the inner list indicates
-                images in a batch. each dict has image information.
-            rescale (bool, optional): Whether to rescale the results.
-                Defaults to False.
-
-        Returns:
-            list[ndarray]: bbox results of each class
-        """
-        return self.aug_test_bboxes(feats, img_metas, rescale=rescale)
