@@ -306,35 +306,16 @@ class SCRFDHead(AnchorHead):
             kps_pred_module = self.stride_kps['0'] if self.strides_share else self.stride_kps[str(stride)]
             kps_pred = kps_pred_module(reg_feat)
         else:
-            kps_pred = bbox_pred.new_zeros( (bbox_pred.shape[0], self.NK*2, bbox_pred.shape[2], bbox_pred.shape[3]) )
+            kps_pred = bbox_pred.new_zeros((bbox_pred.shape[0], self.NK*2, bbox_pred.shape[2], bbox_pred.shape[3]))
+
         if torch.onnx.is_in_onnx_export():
             assert not self.use_dfl
-            print('in-onnx-export', cls_score.shape, bbox_pred.shape)
-            #print(scale.parameters())
-            #for p in scale.parameters():
-                #print(p.name, p.data)
-                #scale_val = p.data.item()
-                #print(scale_val)
-            #print('EEE1', cls_score.shape)
-            #cls_score = torch.sigmoid(cls_score).reshape(1, self.cls_out_channels, -1).permute(0, 2, 1)
-            #print('EEE2', cls_score.shape)
-            #if self.use_dfl:
-            #    bbox_pred = self.integral(bbox_pred) * stride[0]
-            #else:
-            #    bbox_pred = bbox_pred.reshape( (-1,4) ) * stride[0]
-            #if self.use_dfl:
-            #    bbox_pred = bbox_pred.reshape(1, (self.reg_max+1)*4, -1).permute(0, 2, 1)
-            #    bbox_pred = bbox_pred.reshape( (1, -1, 4, self.reg_max+1) )
-            #    bbox_pred = F.softmax(bbox_pred, dim=3)
-            #else:
-            #    bbox_pred = bbox_pred.reshape(1, 4, -1).permute(0, 2, 1)
-            #kps_pred = kps_pred.reshape(1, 10, -1).permute(0, 2, 1)
-
-            # Add output batch dim, based on pull request #1593
+            print(f'onnx export before shape: score={cls_score.shape}, bbox={bbox_pred.shape}, kps={kps_pred.shape}')
             batch_size = cls_score.shape[0]
             cls_score = cls_score.permute(0, 2, 3, 1).reshape(batch_size, -1, self.cls_out_channels).sigmoid()
             bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(batch_size, -1, 4)
             kps_pred = kps_pred.permute(0, 2, 3, 1).reshape(batch_size, -1, 10)
+            print(f'onnx export after shape: score={cls_score.shape}, bbox={bbox_pred.shape}, kps={kps_pred.shape}')
 
         return cls_score, bbox_pred, kps_pred
 
@@ -756,7 +737,7 @@ class SCRFDHead(AnchorHead):
             gt_keypointss_list = [None for _ in range(num_imgs)]
         #print('QQQ:', num_imgs, gt_bboxes_list[0].shape)
         (all_anchors, all_labels, all_label_weights, all_bbox_targets,
-         all_bbox_weights, all_keypoints_targets, all_keypoints_weights, 
+         all_bbox_weights, all_keypoints_targets, all_keypoints_weights,
          pos_inds_list, neg_inds_list) = multi_apply(
              self._get_target_single,
              anchor_list,
