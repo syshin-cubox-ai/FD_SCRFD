@@ -264,6 +264,8 @@ class SCRFDHead(AnchorHead):
                     scale levels, each is a 4D-tensor, the channel number is
                     4*(n+1), n is max value of integral set.
         """
+        if force_onnx_export:
+            force_onnx_export = [True, True, True]
         return multi_apply(self.forward_single, feats, self.scales, self.anchor_generator.strides, force_onnx_export)
 
     def forward_single(self, x, scale, stride, force_onnx_export=False):
