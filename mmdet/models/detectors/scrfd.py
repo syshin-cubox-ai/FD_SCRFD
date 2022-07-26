@@ -1,4 +1,5 @@
 import torch
+from mmcv.runner import auto_fp16
 
 from mmdet.core import bbox2result
 from .single_stage import SingleStageDetector
@@ -48,7 +49,32 @@ class SCRFD(SingleStageDetector):
                                               gt_labels, gt_keypointss, gt_bboxes_ignore)
         return losses
 
-    def simple_test(self, img, img_metas, rescale=False, force_onnx_export=False):
+    @auto_fp16(apply_to=('img', ))
+    def forward(self, img, img_metas=None, return_loss=True, force_onnx_export=False, **kwargs):
+        """Calls either :func:`forward_train` or :func:`forward_test` depending
+        on whether ``return_loss`` is ``True``.
+
+        Note this setting will change the expected inputs. When
+        ``return_loss=True``, img and img_meta are single-nested (i.e. Tensor
+        and List[dict]), and when ``resturn_loss=False``, img and img_meta
+        should be double nested (i.e.  List[Tensor], List[List[dict]]), with
+        the outer list indicating test time augmentations.
+        """
+        if torch.onnx.is_in_onnx_export() or force_onnx_export:
+            x = self.extract_feat(img)
+            x = self.bbox_head(x, force_onnx_export)  # scrfd_head.py의 forward_single() 참조
+            if self.bbox_head.use_kps:
+                pred = x[0] + x[1] + x[2]  # cls_score, bbox_pred, kps_pred
+            else:
+                pred = x[0] + x[1]  # cls_score, bbox_pred
+            return pred
+
+        if return_loss:
+            return self.forward_train(img, img_metas, **kwargs)
+        else:
+            return self.forward_test(img, img_metas, **kwargs)
+
+    def simple_test(self, img, img_metas, rescale=False):
         """Test function without test time augmentation.
 
         Args:
@@ -62,24 +88,14 @@ class SCRFD(SingleStageDetector):
                 The outer list corresponds to each image. The inner list
                 corresponds to each class.
         """
-        if torch.onnx.is_in_onnx_export() or force_onnx_export:
-            x = self.extract_feat(img)
-            x = self.bbox_head(x, force_onnx_export)  # scrfd_head.py의 forward_single() 참조
-            if self.bbox_head.use_kps:
-                pred = x[0] + x[1] + x[2]  # cls_score, bbox_pred, kps_pred
-            else:
-                pred = x[0] + x[1]  # cls_score, bbox_pred
-            return pred
-
-        else:
-            x = self.extract_feat(img)
-            outs = self.bbox_head(x)
-            bbox_list = self.bbox_head.get_bboxes(*outs, img_metas, rescale=rescale)
-            bbox_results = [
-                bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
-                for det_bboxes, det_labels in bbox_list
-            ]
-            return bbox_results
+        x = self.extract_feat(img)
+        outs = self.bbox_head(x)
+        bbox_list = self.bbox_head.get_bboxes(*outs, img_metas, rescale=rescale)
+        bbox_results = [
+            bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
+            for det_bboxes, det_labels in bbox_list
+        ]
+        return bbox_results
 
     def feature_test(self, img):
         x = self.extract_feat(img)
