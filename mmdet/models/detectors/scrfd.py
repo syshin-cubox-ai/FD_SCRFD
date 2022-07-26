@@ -77,7 +77,7 @@ class SCRFD(SingleStageDetector):
         else:
             return self.forward_test(img, img_metas, **kwargs)
 
-    def forward_onnx(self, img, img_size=None, conf_thres=None, iou_thres=None):
+    def forward_onnx(self, img, img_size, conf_thres, iou_thres):
         x = self.extract_feat(img)
         x = self.bbox_head(x, onnx_export=True)  # scrfd_head.py의 forward_single() 참조
         if self.bbox_head.use_kps:
