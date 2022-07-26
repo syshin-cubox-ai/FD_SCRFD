@@ -30,6 +30,7 @@ if __name__ == '__main__':
         'normalize_cfg': {'mean': [127.5, 127.5, 127.5], 'std': [128.0, 128.0, 128.0]},
     }
     model, input_data = mmdet.core.generate_inputs_and_wrap_model(args.config, args.checkpoint, input_config)
+    input_data = input_data[0]
 
     # Define output file path
     output_dir = 'onnx'
@@ -68,7 +69,7 @@ if __name__ == '__main__':
 
     # Compare the exported onnx model with the torch model
     session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
-    onnx_inputs = {name: to_numpy(data) for name, data in zip(input_names, input_data)}
+    onnx_inputs = {input_names[0]: to_numpy(input_data)}
     onnx_ouputs = session.run(None, onnx_inputs)
 
     torch_outputs = model(input_data, force_onnx_export=True)
