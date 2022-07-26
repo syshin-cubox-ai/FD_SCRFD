@@ -1,6 +1,7 @@
 import argparse
 import os
 
+import mmcv
 import numpy as np
 import onnx
 import onnxruntime
@@ -23,14 +24,18 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
 
-    # Create model and tensor data
-    input_config = {
-        'input_shape': [1, 3, 640, 640],
-        'input_path': 'tests/data/2.jpg',
-        'normalize_cfg': {'mean': [127.5, 127.5, 127.5], 'std': [128.0, 128.0, 128.0]},
-    }
-    model, input_data = mmdet.core.generate_inputs_and_wrap_model(args.config, args.checkpoint, input_config)
-    input_data = input_data[0]
+    input_shape = [1, 3, 640, 640]
+    input_path = 'tests/data/2.jpg'
+    mean = np.array([127.5, 127.5, 127.5], dtype=np.float32)
+    std = np.array([128.0, 128.0, 128.0], dtype=np.float32)
+
+    # Create model and input data
+    model = mmdet.core.build_model_from_cfg(args.config, args.checkpoint)
+    img = mmcv.imread(input_path)
+    img = mmcv.imresize(img, input_shape[2:][::-1])
+    img = mmcv.imnormalize(img, mean, std)
+    img = img.transpose(2, 0, 1)
+    img = torch.from_numpy(img).unsqueeze(0).float()
 
     # Define output file path
     output_dir = 'onnx'
@@ -59,7 +64,7 @@ if __name__ == '__main__':
     # Export model into ONNX format
     torch.onnx.export(
         model,
-        input_data,
+        img,
         output_path,
         input_names=input_names,
         output_names=output_names,
@@ -69,10 +74,10 @@ if __name__ == '__main__':
 
     # Compare the exported onnx model with the torch model
     session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
-    onnx_inputs = {input_names[0]: to_numpy(input_data)}
+    onnx_inputs = {input_names[0]: to_numpy(img)}
     onnx_ouputs = session.run(None, onnx_inputs)
 
-    torch_outputs = model(input_data, force_onnx_export=True)
+    torch_outputs = model(img, force_onnx_export=True)
     torch_outputs = [to_numpy(out) for out in torch_outputs]
 
     for onnx_ouput, torch_output in zip(onnx_ouputs, torch_outputs):
@@ -82,8 +87,8 @@ if __name__ == '__main__':
     if args.simplify:
         model = onnx.load(output_path)
         if args.dynamic:
-            input_shape = {model.graph.input[0].name: input_config['input_shape']}
-            model, check = onnxsim.simplify(model, overwrite_input_shapes=input_shape, test_input_shapes=input_shape)
+            input_shape = {model.graph.input[0].name: input_shape}
+            model, check = onnxsim.simplify(model, test_input_shapes=input_shape)
         else:
             model, check = onnxsim.simplify(model)
         assert check, 'Simplified ONNX model could not be validated'
