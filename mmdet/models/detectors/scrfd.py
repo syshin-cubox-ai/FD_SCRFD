@@ -1,4 +1,7 @@
+from typing import Tuple
+
 import torch
+import torchvision.transforms.functional as F
 from mmcv.runner import auto_fp16
 
 from mmdet.core import bbox2result
@@ -50,7 +53,7 @@ class SCRFD(SingleStageDetector):
         return losses
 
     @auto_fp16(apply_to=('img', ))
-    def forward(self, img, img_metas=None, return_loss=True, force_onnx_export=False, **kwargs):
+    def forward(self, img, img_metas=None, return_loss=True, *args, **kwargs):
         """Calls either :func:`forward_train` or :func:`forward_test` depending
         on whether ``return_loss`` is ``True``.
 
@@ -60,19 +63,28 @@ class SCRFD(SingleStageDetector):
         should be double nested (i.e.  List[Tensor], List[List[dict]]), with
         the outer list indicating test time augmentations.
         """
+        if len(kwargs) > 0:
+            force_onnx_export = kwargs['force_onnx_export']
+        else:
+            force_onnx_export = False
+
         if torch.onnx.is_in_onnx_export() or force_onnx_export:
-            x = self.extract_feat(img)
-            x = self.bbox_head(x, force_onnx_export)  # scrfd_head.py의 forward_single() 참조
-            if self.bbox_head.use_kps:
-                pred = x[0] + x[1] + x[2]  # cls_score, bbox_pred, kps_pred
-            else:
-                pred = x[0] + x[1]  # cls_score, bbox_pred
-            return pred
+            params = [img, img_metas, return_loss] + list(args)
+            return self.forward_onnx(*params)
 
         if return_loss:
             return self.forward_train(img, img_metas, **kwargs)
         else:
             return self.forward_test(img, img_metas, **kwargs)
+
+    def forward_onnx(self, img, img_size, conf_thres, iou_thres):
+        x = self.extract_feat(img)
+        x = self.bbox_head(x, onnx_export=True)  # scrfd_head.py의 forward_single() 참조
+        if self.bbox_head.use_kps:
+            pred = x[0] + x[1] + x[2]  # cls_score, bbox_pred, kps_pred
+        else:
+            pred = x[0] + x[1]  # cls_score, bbox_pred
+        return pred
 
     def simple_test(self, img, img_metas, rescale=False):
         """Test function without test time augmentation.
