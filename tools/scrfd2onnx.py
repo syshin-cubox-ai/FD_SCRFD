@@ -36,6 +36,7 @@ if __name__ == '__main__':
     img = mmcv.imnormalize(img, mean, std)
     img = img.transpose(2, 0, 1)
     img = torch.from_numpy(img).unsqueeze(0).float()
+    input_data = (img, torch.tensor(640, dtype=torch.int32), torch.tensor(0.3), torch.tensor(0.5))
 
     # Define output file path
     output_dir = 'onnx'
@@ -47,7 +48,7 @@ if __name__ == '__main__':
         output_path = os.path.join(output_dir, f'{cfg_name}_static_axis.onnx')
 
     # Define input and output names
-    input_names = ['input_1']
+    input_names = ['img', 'img_size', 'conf_thres', 'iou_thres']
     output_names = ['score_8', 'score_16', 'score_32', 'bbox_8', 'bbox_16', 'bbox_32']
 
     # If model graph contains keypoints strides add keypoints to outputs
@@ -64,7 +65,7 @@ if __name__ == '__main__':
     # Export model into ONNX format
     torch.onnx.export(
         model,
-        img,
+        input_data,
         output_path,
         input_names=input_names,
         output_names=output_names,
@@ -74,10 +75,10 @@ if __name__ == '__main__':
 
     # Compare the exported onnx model with the torch model
     session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
-    onnx_inputs = {input_names[0]: to_numpy(img)}
+    onnx_inputs = {name: to_numpy(data) for name, data in zip(input_names, input_data)}
     onnx_ouputs = session.run(None, onnx_inputs)
 
-    torch_outputs = model(img, force_onnx_export=True)
+    torch_outputs = model(input_data, force_onnx_export=True)
     torch_outputs = [to_numpy(out) for out in torch_outputs]
 
     for onnx_ouput, torch_output in zip(onnx_ouputs, torch_outputs):
