@@ -78,7 +78,7 @@ if __name__ == '__main__':
     onnx_inputs = {name: to_numpy(data) for name, data in zip(input_names, input_data)}
     onnx_ouputs = session.run(None, onnx_inputs)
 
-    torch_outputs = model(input_data, force_onnx_export=True)
+    torch_outputs = model(*input_data, force_onnx_export=True)
     torch_outputs = [to_numpy(out) for out in torch_outputs]
 
     for onnx_ouput, torch_output in zip(onnx_ouputs, torch_outputs):

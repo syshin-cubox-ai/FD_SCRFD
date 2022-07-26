@@ -63,7 +63,7 @@ class SCRFD(SingleStageDetector):
         should be double nested (i.e.  List[Tensor], List[List[dict]]), with
         the outer list indicating test time augmentations.
         """
-        if len(kwargs) > 0:
+        if 'force_onnx_export' in kwargs.keys():
             force_onnx_export = kwargs['force_onnx_export']
         else:
             force_onnx_export = False
