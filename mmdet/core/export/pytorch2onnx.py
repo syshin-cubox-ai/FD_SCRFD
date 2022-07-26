@@ -1,7 +1,7 @@
 from functools import partial
 
+import cv2
 import mmcv
-import numpy as np
 import torch
 from mmcv.runner import load_checkpoint
 
@@ -118,17 +118,8 @@ def preprocess_example_input(input_config):
     """
     input_path = input_config['input_path']
     input_shape = input_config['input_shape']
-    one_img = mmcv.imread(input_path)
-    one_img = mmcv.imresize(one_img, input_shape[2:][::-1])
-    show_img = one_img.copy()
-    if 'normalize_cfg' in input_config.keys():
-        normalize_cfg = input_config['normalize_cfg']
-        mean = np.array(normalize_cfg['mean'], dtype=np.float32)
-        std = np.array(normalize_cfg['std'], dtype=np.float32)
-        one_img = mmcv.imnormalize(one_img, mean, std)
-    one_img = one_img.transpose(2, 0, 1)
-    one_img = torch.from_numpy(one_img).unsqueeze(0).float().requires_grad_(
-        True)
+    one_img = cv2.imread(input_path)
+    one_img = torch.from_numpy(one_img)
     (_, C, H, W) = input_shape
     one_meta = {
         'img_shape': (H, W, C),
@@ -137,7 +128,6 @@ def preprocess_example_input(input_config):
         'filename': '<demo>.png',
         'scale_factor': 1.0,
         'flip': False,
-        'show_img': show_img,
     }
 
     return one_img, one_meta
