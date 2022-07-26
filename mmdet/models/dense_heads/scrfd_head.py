@@ -248,7 +248,7 @@ class SCRFDHead(AnchorHead):
             for stride, conv in self.stride_kps.items():
                 normal_init(conv, std=0.01)
 
-    def forward(self, feats, force_onnx_export=False):
+    def forward(self, feats, onnx_export=False):
         """Forward features from the upstream network.
 
         Args:
@@ -264,7 +264,7 @@ class SCRFDHead(AnchorHead):
                     scale levels, each is a 4D-tensor, the channel number is
                     4*(n+1), n is max value of integral set.
         """
-        self.force_onnx_export = force_onnx_export
+        self.onnx_export = onnx_export
         return multi_apply(self.forward_single, feats, self.scales, self.anchor_generator.strides)
 
     def forward_single(self, x, scale, stride):
@@ -309,7 +309,7 @@ class SCRFDHead(AnchorHead):
         else:
             kps_pred = bbox_pred.new_zeros((bbox_pred.shape[0], self.NK*2, bbox_pred.shape[2], bbox_pred.shape[3]))
 
-        if torch.onnx.is_in_onnx_export() or self.force_onnx_export:
+        if self.onnx_export:
             assert not self.use_dfl
             batch_size = cls_score.shape[0]
             cls_score = cls_score.permute(0, 2, 3, 1).reshape(batch_size, -1, self.cls_out_channels).sigmoid()
