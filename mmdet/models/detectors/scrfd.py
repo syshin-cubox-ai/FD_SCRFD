@@ -1,7 +1,8 @@
-from mmdet.core import bbox2result
-from ..builder import DETECTORS
-from .single_stage import SingleStageDetector
 import torch
+
+from mmdet.core import bbox2result
+from .single_stage import SingleStageDetector
+from ..builder import DETECTORS
 
 
 @DETECTORS.register_module()
@@ -61,17 +62,18 @@ class SCRFD(SingleStageDetector):
                 The outer list corresponds to each image. The inner list
                 corresponds to each class.
         """
-        x = self.extract_feat(img)
-        outs = self.bbox_head(x, force_onnx_export)  # scrfd_head.py의 forward_single() 참조
-
         if torch.onnx.is_in_onnx_export() or force_onnx_export:
-            cls_score, bbox_pred, kps_pred = outs
+            x = self.extract_feat(img)
+            x = self.bbox_head(x, force_onnx_export)  # scrfd_head.py의 forward_single() 참조
             if self.bbox_head.use_kps:
-                return cls_score + bbox_pred + kps_pred
+                pred = x[0] + x[1] + x[2]  # cls_score, bbox_pred, kps_pred
             else:
-                return cls_score + bbox_pred
+                pred = x[0] + x[1]  # cls_score, bbox_pred
+            return pred
 
         else:
+            x = self.extract_feat(img)
+            outs = self.bbox_head(x)
             bbox_list = self.bbox_head.get_bboxes(*outs, img_metas, rescale=rescale)
             bbox_results = [
                 bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
