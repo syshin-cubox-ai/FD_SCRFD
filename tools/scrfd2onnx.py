@@ -46,7 +46,7 @@ if __name__ == '__main__':
     img = cv2.imread(img_path)
     img = transform_image(img, img_size)
     img = torch.from_numpy(img)
-    input_data = (img, torch.tensor(640, dtype=torch.int32), torch.tensor(0.3), torch.tensor(0.5))
+    input_data = (img, torch.tensor(0.3), torch.tensor(0.5))
 
     # Define output file path
     output_dir = 'onnx'
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         output_path = os.path.join(output_dir, f'{cfg_name}_static_axis.onnx')
 
     # Define input and output names
-    input_names = ['img', 'img_size', 'conf_thres', 'iou_thres']
+    input_names = ['img', 'conf_thres', 'iou_thres']
     output_names = ['score_8', 'score_16', 'score_32', 'bbox_8', 'bbox_16', 'bbox_32']
 
     # If model graph contains keypoints strides add keypoints to outputs
