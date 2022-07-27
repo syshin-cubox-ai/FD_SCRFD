@@ -66,20 +66,14 @@ class SCRFD(SingleStageDetector):
             force_onnx_export = False
 
         if torch.onnx.is_in_onnx_export() or force_onnx_export:
-            params = (img, img_metas, return_loss)
-            return self.forward_onnx(*params)
+            return self.forward_onnx(img)
 
         if return_loss:
             return self.forward_train(img, img_metas, **kwargs)
         else:
             return self.forward_test(img, img_metas, **kwargs)
 
-    def forward_onnx(
-        self,
-        img: torch.Tensor,
-        conf_thres: torch.Tensor,
-        iou_thres: torch.Tensor,
-    ) -> torch.Tensor:
+    def forward_onnx(self, img: torch.Tensor) -> torch.Tensor:
         # Forward
         x = self.extract_feat(img)
         x = self.bbox_head(x, onnx_export=True)  # scrfd_head.py의 forward_single() 참조
@@ -92,9 +86,9 @@ class SCRFD(SingleStageDetector):
         # ['score_8', 'score_16', 'score_32', 'bbox_8', 'bbox_16', 'bbox_32', 'kps_8', 'kps_16', 'kps_32']
 
         # Post-forward
-        bbox_list = []
-        conf_list = []
-        kps_list = []
+        bbox = None
+        conf = None
+        kps = None
         # 이 코드는 다중 배치여도 이미지 1장만 처리함
         for idx, stride in enumerate([8, 16, 32]):
             # Create anchor grid (앵커 개수=2)
@@ -106,22 +100,28 @@ class SCRFD(SingleStageDetector):
             anchor_centers = torch.stack([anchor_centers] * 2, dim=1).reshape((-1, 2)).to(torch.float32)
 
             # Post-process bbox, conf, kps
-            bbox = pred[idx + 3][0] * stride
-            bbox = self._distance2bbox(anchor_centers, bbox)
-            bbox_list.append(bbox)
-            conf = pred[idx + 0][0]
-            conf_list.append(conf)
+            bbox_pred = pred[idx + 3][0] * stride
+            bbox_pred = self._distance2bbox(anchor_centers, bbox_pred)
+            conf_pred = pred[idx + 0][0]
             if len(pred) == 9:
-                kps = pred[idx + 6][0] * stride
-                kps = self._distance2kps(anchor_centers, kps)
-                kps_list.append(kps)
+                kps_pred = pred[idx + 6][0] * stride
+                kps_pred = self._distance2kps(anchor_centers, kps_pred)
+            else:
+                kps_pred = None
 
-        bbox = torch.vstack(bbox_list)
-        conf = torch.vstack(conf_list)
-        pred = torch.hstack((bbox, conf))
-        if len(kps_list) > 0:
-            kps = torch.vstack(kps_list)
-            pred = torch.hstack((pred, kps))
+            if bbox is None and conf is None:
+                bbox = bbox_pred
+                conf = conf_pred
+                if len(pred) == 9:
+                    kps = kps_pred
+            else:
+                bbox = torch.cat((bbox, bbox_pred), dim=0)
+                conf = torch.cat((conf, conf_pred), dim=0)
+                kps = torch.cat((kps, kps_pred), dim=0)
+
+        pred = torch.cat((bbox, conf), dim=1)
+        if kps is not None:
+            pred = torch.cat((pred, kps), dim=1)
         order = conf.ravel().argsort(descending=True)
         pred = pred[order, :]
         return pred
