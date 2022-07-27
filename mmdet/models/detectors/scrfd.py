@@ -86,9 +86,9 @@ class SCRFD(SingleStageDetector):
         # ['score_8', 'score_16', 'score_32', 'bbox_8', 'bbox_16', 'bbox_32', 'kps_8', 'kps_16', 'kps_32']
 
         # Post-forward
-        bbox = None
-        conf = None
-        kps = None
+        bbox_list = []
+        conf_list = []
+        kps_list = []
         # 이 코드는 다중 배치여도 이미지 1장만 처리함
         for idx, stride in enumerate([8, 16, 32]):
             # Create anchor grid (앵커 개수=2)
@@ -100,29 +100,23 @@ class SCRFD(SingleStageDetector):
             anchor_centers = torch.stack([anchor_centers] * 2, dim=1).reshape((-1, 2)).to(torch.float32)
 
             # Post-process bbox, conf, kps
-            bbox_pred = pred[idx + 3][0] * stride
-            bbox_pred = self._distance2bbox(anchor_centers, bbox_pred)
-            conf_pred = pred[idx + 0][0]
+            bbox = pred[idx + 3][0] * stride
+            bbox = self._distance2bbox(anchor_centers, bbox)
+            bbox_list.append(bbox)
+            conf = pred[idx + 0][0]
+            conf_list.append(conf)
             if len(pred) == 9:
-                kps_pred = pred[idx + 6][0] * stride
-                kps_pred = self._distance2kps(anchor_centers, kps_pred)
-            else:
-                kps_pred = None
+                kps = pred[idx + 6][0] * stride
+                kps = self._distance2kps(anchor_centers, kps)
+                kps_list.append(kps)
 
-            if bbox is None and conf is None:
-                bbox = bbox_pred
-                conf = conf_pred
-                if len(pred) == 9:
-                    kps = kps_pred
-            else:
-                bbox = torch.cat((bbox, bbox_pred), dim=0)
-                conf = torch.cat((conf, conf_pred), dim=0)
-                kps = torch.cat((kps, kps_pred), dim=0)
-
+        bbox = torch.cat(bbox_list, dim=0)
+        conf = torch.cat(conf_list, dim=0)
         pred = torch.cat((bbox, conf), dim=1)
-        if kps is not None:
+        if len(kps_list) > 0:
+            kps = torch.cat(kps_list, dim=0)
             pred = torch.cat((pred, kps), dim=1)
-        order = conf.ravel().argsort(descending=True)
+        order = conf.reshape(-1).argsort(descending=True)
         pred = pred[order, :]
         return pred
 
