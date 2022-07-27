@@ -49,7 +49,7 @@ if __name__ == '__main__':
     output_path = os.path.join(output_dir, f'{cfg_name}.onnx')
 
     # Define input and output names
-    input_names = ['img', 'conf_thres', 'iou_thres']
+    input_names = ['img']
     output_names = ['pred']
 
     # Define dynamic axes for export
@@ -66,26 +66,11 @@ if __name__ == '__main__':
         dynamic_axes=dynamic_axes,
     )
 
-    # Compare the exported onnx model with the torch model
-    session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
-    inputs = session.get_inputs()
-    outputs = session.get_outputs()
-    onnx_inputs = {input_names[0]: img.numpy()}
-    onnx_ouputs = session.run(None, onnx_inputs)
-
-    torch_outputs = model(img, force_onnx_export=True).numpy()
-
-    for onnx_ouput, torch_output in zip(onnx_ouputs, torch_outputs):
-        np.testing.assert_allclose(onnx_ouput, torch_output, rtol=1e-03, atol=1e-05)
-
     # Simplify ONNX model
     if args.simplify:
         model = onnx.load(output_path)
-        if args.dynamic:
-            input_shapes = {model.graph.input[0].name: img.shape}
-            model, check = onnxsim.simplify(model, test_input_shapes=input_shapes)
-        else:
-            model, check = onnxsim.simplify(model)
+        input_shapes = {model.graph.input[0].name: img.shape}
+        model, check = onnxsim.simplify(model, test_input_shapes=input_shapes)
         assert check, 'Simplified ONNX model could not be validated'
         onnx.save(model, output_path)
     print(f'Successfully export ONNX model: {output_path}')
