@@ -116,7 +116,7 @@ class SCRFD(SingleStageDetector):
         if len(kps_list) > 0:
             kps = torch.cat(kps_list, dim=0)
             pred = torch.cat((pred, kps), dim=1)
-        order = conf.reshape(-1).argsort(descending=True)
+        order = conf.reshape(-1).sort(descending=True)[1]
         pred = pred[order, :]
         return pred
 
