@@ -75,6 +75,8 @@ if __name__ == '__main__':
 
     # Compare the exported onnx model with the torch model
     session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
+    inputs = session.get_inputs()
+    outputs = session.get_outputs()
     onnx_inputs = {name: to_numpy(data) for name, data in zip(input_names, input_data)}
     onnx_ouputs = session.run(None, onnx_inputs)
 
