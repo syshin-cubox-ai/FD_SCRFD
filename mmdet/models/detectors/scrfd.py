@@ -98,8 +98,8 @@ class SCRFD(SingleStageDetector):
         # 이 코드는 다중 배치여도 이미지 1장만 처리함
         for idx, stride in enumerate([8, 16, 32]):
             # Create anchor grid (앵커 개수=2)
-            height = img.shape[2] // stride
-            width = img.shape[3] // stride
+            height = torch.div(img.shape[2], stride, rounding_mode='floor')
+            width = torch.div(img.shape[3], stride, rounding_mode='floor')
             anchor_centers = torch.meshgrid(torch.arange(height), torch.arange(width), indexing='xy')
             anchor_centers = torch.stack(anchor_centers, dim=-1)
             anchor_centers = (anchor_centers * stride).reshape((-1, 2))
@@ -124,9 +124,6 @@ class SCRFD(SingleStageDetector):
             pred = torch.hstack((pred, kps))
         order = conf.ravel().argsort(descending=True)
         pred = pred[order, :]
-
-        # NMS
-        pred = self._nms(pred, conf_thres, iou_thres)
         return pred
 
     def _distance2bbox(self, points: torch.Tensor, distance: torch.Tensor) -> torch.Tensor:
@@ -142,40 +139,6 @@ class SCRFD(SingleStageDetector):
             kps_coords.append(points[:, 0] + distance[:, i])
             kps_coords.append(points[:, 1] + distance[:, i + 1])
         return torch.stack(kps_coords, dim=-1)
-
-    def _nms(self, pred: torch.Tensor, conf_thres: torch.Tensor, iou_thres: torch.Tensor) -> torch.Tensor:
-        # Remove items below the confidence threshold.
-        keep = torch.where(pred[:, 4] >= conf_thres)[0]
-        pred = pred[keep]
-
-        x1 = pred[:, 0]
-        y1 = pred[:, 1]
-        x2 = pred[:, 2]
-        y2 = pred[:, 3]
-        scores = pred[:, 4]
-        areas = (x2 - x1) * (y2 - y1)
-        order = scores.argsort(descending=True)
-
-        keep = []
-        while order.shape[0] > 0:
-            i = order[0]
-            keep.append(i)
-            xx1 = torch.maximum(x1[i], x1[order[1:]])
-            yy1 = torch.maximum(y1[i], y1[order[1:]])
-            xx2 = torch.minimum(x2[i], x2[order[1:]])
-            yy2 = torch.minimum(y2[i], y2[order[1:]])
-
-            w = torch.maximum(torch.zeros(1), xx2 - xx1 + 1)
-            h = torch.maximum(torch.zeros(1), yy2 - yy1 + 1)
-            intersection = w * h
-            iou = intersection / (areas[i] + areas[order[1:]] - intersection)
-
-            # i번째 항목(박스)을 기준으로, iou 임계값 이하인 iou를 가지는 항목만 남김
-            idx = torch.where(iou <= iou_thres)[0]
-            order = order[idx + 1]
-
-        pred = pred[keep, :]
-        return pred
 
     def simple_test(self, img, img_metas, rescale=False):
         """Test function without test time augmentation.
