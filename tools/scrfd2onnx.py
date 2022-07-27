@@ -50,10 +50,7 @@ if __name__ == '__main__':
     output_dir = 'onnx'
     os.makedirs(output_dir, exist_ok=True)
     cfg_name = os.path.splitext(os.path.basename(args.config))[0]
-    if args.dynamic:
-        output_path = os.path.join(output_dir, f'{cfg_name}.onnx')
-    else:
-        output_path = os.path.join(output_dir, f'{cfg_name}_static_axis.onnx')
+    output_path = os.path.join(output_dir, f'{cfg_name}.onnx')
 
     # Define input and output names
     input_names = ['img', 'conf_thres', 'iou_thres']
