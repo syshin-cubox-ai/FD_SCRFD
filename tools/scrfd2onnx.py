@@ -4,7 +4,6 @@ import os
 import cv2
 import numpy as np
 import onnx
-import onnxruntime
 import onnxsim
 import torch
 
