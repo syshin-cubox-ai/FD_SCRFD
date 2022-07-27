@@ -1,7 +1,7 @@
 import argparse
 import os
 
-import mmcv
+import cv2
 import numpy as np
 import onnx
 import onnxruntime
@@ -15,6 +15,18 @@ def to_numpy(tensor: torch.Tensor) -> np.ndarray:
     return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
 
+def transform_image(img: np.ndarray, img_size) -> np.ndarray:
+    h, w = img.shape[:2]
+    scale = img_size / max(h, w)
+    if scale != 1:
+        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_LINEAR)
+
+    padded_img = np.zeros((img_size, img_size, 3), dtype=np.uint8)
+    padded_img[:img.shape[0], :img.shape[1], :] = img
+    img = cv2.dnn.blobFromImage(padded_img, 1 / 128, padded_img.shape[:2][::-1], (127.5, 127.5, 127.5), swapRB=True)
+    return img
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert MMDetection models to ONNX')
     parser.add_argument('config', help='config file path')
@@ -24,18 +36,16 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
 
-    input_shape = [1, 3, 640, 640]
-    input_path = 'tests/data/2.jpg'
-    mean = np.array([127.5, 127.5, 127.5], dtype=np.float32)
-    std = np.array([128.0, 128.0, 128.0], dtype=np.float32)
+    img_path = 'tests/data/2.jpg'
+    img_size = 640
+    mean = (127.5, 127.5, 127.5)
+    std = (128.0, 128.0, 128.0)
 
     # Create model and input data
     model = mmdet.core.build_model_from_cfg(args.config, args.checkpoint)
-    img = mmcv.imread(input_path)
-    img = mmcv.imresize(img, input_shape[2:][::-1])
-    img = mmcv.imnormalize(img, mean, std)
-    img = img.transpose(2, 0, 1)
-    img = torch.from_numpy(img).unsqueeze(0).float()
+    img = cv2.imread(img_path)
+    img = transform_image(img, img_size)
+    img = torch.from_numpy(img)
     input_data = (img, torch.tensor(640, dtype=torch.int32), torch.tensor(0.3), torch.tensor(0.5))
 
     # Define output file path
@@ -90,8 +100,8 @@ if __name__ == '__main__':
     if args.simplify:
         model = onnx.load(output_path)
         if args.dynamic:
-            input_shape = {model.graph.input[0].name: input_shape}
-            model, check = onnxsim.simplify(model, test_input_shapes=input_shape)
+            input_shapes = {model.graph.input[0].name: img.shape}
+            model, check = onnxsim.simplify(model, test_input_shapes=input_shapes)
         else:
             model, check = onnxsim.simplify(model)
         assert check, 'Simplified ONNX model could not be validated'
