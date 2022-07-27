@@ -15,7 +15,12 @@ def to_numpy(tensor: torch.Tensor) -> np.ndarray:
     return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
 
-def transform_image(img: np.ndarray, img_size) -> np.ndarray:
+def transform_image(img: np.ndarray, img_size: int) -> np.ndarray:
+    """
+    Resizes the input image to fit img_size while maintaining aspect ratio.
+    This performs BGR to RGB, HWC to CHW, 0~1 normalization, and adding batch dimension.
+    (mean=(127.5, 127.5, 127.5), std=(128.0, 128.0, 128.0))
+    """
     h, w = img.shape[:2]
     scale = img_size / max(h, w)
     if scale != 1:
@@ -31,22 +36,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert MMDetection models to ONNX')
     parser.add_argument('config', help='config file path')
     parser.add_argument('checkpoint', help='checkpoint file path')
-    parser.add_argument('--dynamic', type=bool, default=True, help='use dynamic axes')
     parser.add_argument('--simplify', type=bool, default=True, help='use onnx-simplifier')
     args = parser.parse_args()
     print(args)
 
-    img_path = 'tests/data/2.jpg'
-    img_size = 640
-    mean = (127.5, 127.5, 127.5)
-    std = (128.0, 128.0, 128.0)
-
     # Create model and input data
     model = mmdet.core.build_model_from_cfg(args.config, args.checkpoint)
-    img = cv2.imread(img_path)
-    img = transform_image(img, img_size)
-    img = torch.from_numpy(img)
-    input_data = (img, torch.tensor(0.3), torch.tensor(0.5))
+    img = cv2.imread('tests/data/2.jpg')
+    img = transform_image(img, 640)
+    input_data = (torch.from_numpy(img), torch.tensor(0.3), torch.tensor(0.5))
 
     # Define output file path
     output_dir = 'onnx'
@@ -59,18 +57,10 @@ if __name__ == '__main__':
 
     # Define input and output names
     input_names = ['img', 'conf_thres', 'iou_thres']
-    output_names = ['score_8', 'score_16', 'score_32', 'bbox_8', 'bbox_16', 'bbox_32']
-
-    # If model graph contains keypoints strides add keypoints to outputs
-    if 'stride_kps' in str(model):
-        output_names += ['kps_8', 'kps_16', 'kps_32']
+    output_names = ['pred']
 
     # Define dynamic axes for export
-    if args.dynamic:
-        dynamic_axes = {name: {0: 'N', 1: 'C'} for name in output_names}
-        dynamic_axes[input_names[0]] = {0: 'N', 2: 'H', 3: 'W'}
-    else:
-        dynamic_axes = None
+    dynamic_axes = {input_names[0]: {0: 'N', 2: 'H', 3: 'W'}, output_names[0]: {0: 'Num_face'}}
 
     # Export model into ONNX format
     torch.onnx.export(
