@@ -11,10 +11,6 @@ import torch
 import mmdet.core
 
 
-def to_numpy(tensor: torch.Tensor) -> np.ndarray:
-    return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
-
-
 def transform_image(img: np.ndarray, img_size: int) -> np.ndarray:
     """
     Resizes the input image to fit img_size while maintaining aspect ratio.
@@ -44,7 +40,7 @@ if __name__ == '__main__':
     model = mmdet.core.build_model_from_cfg(args.config, args.checkpoint)
     img = cv2.imread('tests/data/2.jpg')
     img = transform_image(img, 640)
-    input_data = (torch.from_numpy(img), torch.tensor(0.3), torch.tensor(0.5))
+    img = torch.from_numpy(img)
 
     # Define output file path
     output_dir = 'onnx'
@@ -57,12 +53,12 @@ if __name__ == '__main__':
     output_names = ['pred']
 
     # Define dynamic axes for export
-    dynamic_axes = {input_names[0]: {0: 'N', 2: 'H', 3: 'W'}, output_names[0]: {0: 'Num_face'}}
+    dynamic_axes = {input_names[0]: {0: 'N', 2: 'H', 3: 'W'}, output_names[0]: {0: 'N_candidates'}}
 
     # Export model into ONNX format
     torch.onnx.export(
         model,
-        input_data,
+        img,
         output_path,
         input_names=input_names,
         output_names=output_names,
@@ -74,11 +70,10 @@ if __name__ == '__main__':
     session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
     inputs = session.get_inputs()
     outputs = session.get_outputs()
-    onnx_inputs = {name: to_numpy(data) for name, data in zip(input_names, input_data)}
+    onnx_inputs = {input_names[0]: img.numpy()}
     onnx_ouputs = session.run(None, onnx_inputs)
 
-    torch_outputs = model(*input_data, force_onnx_export=True)
-    torch_outputs = [to_numpy(out) for out in torch_outputs]
+    torch_outputs = model(img, force_onnx_export=True).numpy()
 
     for onnx_ouput, torch_output in zip(onnx_ouputs, torch_outputs):
         np.testing.assert_allclose(onnx_ouput, torch_output, rtol=1e-03, atol=1e-05)
