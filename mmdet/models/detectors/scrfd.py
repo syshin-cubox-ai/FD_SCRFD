@@ -100,7 +100,7 @@ class SCRFD(SingleStageDetector):
             # Create anchor grid (앵커 개수=2)
             height = torch.div(img.shape[2], stride, rounding_mode='floor')
             width = torch.div(img.shape[3], stride, rounding_mode='floor')
-            anchor_centers = torch.meshgrid(torch.arange(height), torch.arange(width), indexing='xy')
+            anchor_centers = torch.meshgrid(torch.arange(height), torch.arange(width), indexing='ij')[::-1]
             anchor_centers = torch.stack(anchor_centers, dim=-1)
             anchor_centers = (anchor_centers * stride).reshape((-1, 2))
             anchor_centers = torch.stack([anchor_centers] * 2, dim=1).reshape((-1, 2)).to(torch.float32)
