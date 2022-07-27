@@ -1,7 +1,4 @@
-from typing import Tuple
-
 import torch
-import torchvision.transforms.functional as F
 from mmcv.runner import auto_fp16
 
 from mmdet.core import bbox2result
@@ -53,7 +50,7 @@ class SCRFD(SingleStageDetector):
         return losses
 
     @auto_fp16(apply_to=('img', ))
-    def forward(self, img, img_metas=None, return_loss=True, *args, **kwargs):
+    def forward(self, img, img_metas=None, return_loss=True, **kwargs):
         """Calls either :func:`forward_train` or :func:`forward_test` depending
         on whether ``return_loss`` is ``True``.
 
@@ -69,7 +66,7 @@ class SCRFD(SingleStageDetector):
             force_onnx_export = False
 
         if torch.onnx.is_in_onnx_export() or force_onnx_export:
-            params = [img, img_metas, return_loss] + list(args)
+            params = (img, img_metas, return_loss)
             return self.forward_onnx(*params)
 
         if return_loss:
@@ -77,13 +74,107 @@ class SCRFD(SingleStageDetector):
         else:
             return self.forward_test(img, img_metas, **kwargs)
 
-    def forward_onnx(self, img, img_size, conf_thres, iou_thres):
+    def forward_onnx(
+        self,
+        img: torch.Tensor,
+        conf_thres: torch.Tensor,
+        iou_thres: torch.Tensor,
+    ) -> torch.Tensor:
+        # Forward
         x = self.extract_feat(img)
         x = self.bbox_head(x, onnx_export=True)  # scrfd_head.py의 forward_single() 참조
         if self.bbox_head.use_kps:
             pred = x[0] + x[1] + x[2]  # cls_score, bbox_pred, kps_pred
         else:
             pred = x[0] + x[1]  # cls_score, bbox_pred
+        # pred 각 원소의 뜻은 아래와 같다.
+        # ['score_8', 'score_16', 'score_32', 'bbox_8', 'bbox_16', 'bbox_32'] 또는
+        # ['score_8', 'score_16', 'score_32', 'bbox_8', 'bbox_16', 'bbox_32', 'kps_8', 'kps_16', 'kps_32']
+
+        # Post-forward
+        bbox_list = []
+        conf_list = []
+        kps_list = []
+        # 이 코드는 다중 배치여도 이미지 1장만 처리함
+        for idx, stride in enumerate([8, 16, 32]):
+            # Create anchor grid (앵커 개수=2)
+            height = img.shape[2] // stride
+            width = img.shape[3] // stride
+            anchor_centers = torch.meshgrid(torch.arange(height), torch.arange(width), indexing='xy')
+            anchor_centers = torch.stack(anchor_centers, dim=-1)
+            anchor_centers = (anchor_centers * stride).reshape((-1, 2))
+            anchor_centers = torch.stack([anchor_centers] * 2, dim=1).reshape((-1, 2)).to(torch.float32)
+
+            # Post-process bbox, conf, kps
+            bbox = pred[idx + 3][0] * stride
+            bbox = self._distance2bbox(anchor_centers, bbox)
+            bbox_list.append(bbox)
+            conf = pred[idx + 0][0]
+            conf_list.append(conf)
+            if len(pred) == 9:
+                kps = pred[idx + 6][0] * stride
+                kps = self._distance2kps(anchor_centers, kps)
+                kps_list.append(kps)
+
+        bbox = torch.vstack(bbox_list)
+        conf = torch.vstack(conf_list)
+        pred = torch.hstack((bbox, conf))
+        if len(kps_list) > 0:
+            kps = torch.vstack(kps_list)
+            pred = torch.hstack((pred, kps))
+        order = conf.ravel().argsort(descending=True)
+        pred = pred[order, :]
+
+        # NMS
+        pred = self._nms(pred, conf_thres, iou_thres)
+        return pred
+
+    def _distance2bbox(self, points: torch.Tensor, distance: torch.Tensor) -> torch.Tensor:
+        x1 = points[:, 0] - distance[:, 0]
+        y1 = points[:, 1] - distance[:, 1]
+        x2 = points[:, 0] + distance[:, 2]
+        y2 = points[:, 1] + distance[:, 3]
+        return torch.stack([x1, y1, x2, y2], dim=-1)
+
+    def _distance2kps(self, points: torch.Tensor, distance: torch.Tensor) -> torch.Tensor:
+        kps_coords = []
+        for i in range(0, 10, 2):
+            kps_coords.append(points[:, 0] + distance[:, i])
+            kps_coords.append(points[:, 1] + distance[:, i + 1])
+        return torch.stack(kps_coords, dim=-1)
+
+    def _nms(self, pred: torch.Tensor, conf_thres: torch.Tensor, iou_thres: torch.Tensor) -> torch.Tensor:
+        # Remove items below the confidence threshold.
+        keep = torch.where(pred[:, 4] >= conf_thres)[0]
+        pred = pred[keep]
+
+        x1 = pred[:, 0]
+        y1 = pred[:, 1]
+        x2 = pred[:, 2]
+        y2 = pred[:, 3]
+        scores = pred[:, 4]
+        areas = (x2 - x1) * (y2 - y1)
+        order = scores.argsort(descending=True)
+
+        keep = []
+        while order.shape[0] > 0:
+            i = order[0]
+            keep.append(i)
+            xx1 = torch.maximum(x1[i], x1[order[1:]])
+            yy1 = torch.maximum(y1[i], y1[order[1:]])
+            xx2 = torch.minimum(x2[i], x2[order[1:]])
+            yy2 = torch.minimum(y2[i], y2[order[1:]])
+
+            w = torch.maximum(torch.zeros(1), xx2 - xx1 + 1)
+            h = torch.maximum(torch.zeros(1), yy2 - yy1 + 1)
+            intersection = w * h
+            iou = intersection / (areas[i] + areas[order[1:]] - intersection)
+
+            # i번째 항목(박스)을 기준으로, iou 임계값 이하인 iou를 가지는 항목만 남김
+            idx = torch.where(iou <= iou_thres)[0]
+            order = order[idx + 1]
+
+        pred = pred[keep, :]
         return pred
 
     def simple_test(self, img, img_metas, rescale=False):
