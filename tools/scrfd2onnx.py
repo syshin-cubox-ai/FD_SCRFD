@@ -13,7 +13,7 @@ import mmdet.core
 def transform_image(img: np.ndarray, img_size: int) -> np.ndarray:
     """
     Resizes the input image to fit img_size while maintaining aspect ratio.
-    This performs BGR to RGB, HWC to CHW, 0~1 normalization, and adding batch dimension.
+    This performs BGR to RGB, HWC to CHW, normalization, and adding batch dimension.
     (mean=(127.5, 127.5, 127.5), std=(128.0, 128.0, 128.0))
     """
     h, w = img.shape[:2]
