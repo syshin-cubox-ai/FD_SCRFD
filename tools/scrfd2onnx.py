@@ -52,7 +52,7 @@ if __name__ == '__main__':
     output_names = ['pred']
 
     # Define dynamic axes for export
-    dynamic_axes = {input_names[0]: {0: 'N', 2: 'H', 3: 'W'}, output_names[0]: {0: 'N_candidates'}}
+    dynamic_axes = {input_names[0]: {0: 'N', 2: 'H', 3: 'W'}}
 
     # Export model into ONNX format
     torch.onnx.export(
