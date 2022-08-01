@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
     # Test ONNX inference
     try:
-        torch_out = model(img, force_onnx_export=True).numpy()
+        torch_out = model(img, force_onnx_export=True).detach().numpy()
         session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
         onnx_out = session.run(None, {input_names[0]: img.numpy()})[0]
         np.testing.assert_allclose(torch_out, onnx_out, rtol=1e-3, atol=1e-5)
