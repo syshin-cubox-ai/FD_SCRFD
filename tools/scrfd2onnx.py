@@ -4,6 +4,7 @@ import os
 import cv2
 import numpy as np
 import onnx
+import onnx.shape_inference
 import onnxsim
 import torch
 
@@ -44,15 +45,11 @@ if __name__ == '__main__':
     # Define output file path
     output_dir = 'onnx'
     os.makedirs(output_dir, exist_ok=True)
-    cfg_name = os.path.splitext(os.path.basename(args.config))[0]
-    output_path = os.path.join(output_dir, f'{cfg_name}.onnx')
+    output_path = os.path.join(output_dir, os.path.basename(args.config).replace('.pt', '.onnx'))
 
     # Define input and output names
     input_names = ['img']
     output_names = ['pred']
-
-    # Define dynamic axes for export
-    dynamic_axes = {input_names[0]: {0: 'N', 2: 'H', 3: 'W'}}
 
     # Export model into ONNX format
     torch.onnx.export(
@@ -62,8 +59,13 @@ if __name__ == '__main__':
         input_names=input_names,
         output_names=output_names,
         opset_version=11,  # only work with version 11
-        dynamic_axes=dynamic_axes,
+        dynamic_axes={input_names[0]: {0: 'N', 2: 'H', 3: 'W'}},
     )
+
+    # Check exported onnx model
+    onnx_model = onnx.load(f)
+    onnx.checker.check_model(onnx_model)
+    onnx.shape_inference.infer_shapes_path(f, f)
 
     # Simplify ONNX model
     if args.simplify:
