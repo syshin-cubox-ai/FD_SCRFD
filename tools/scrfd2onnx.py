@@ -4,7 +4,7 @@ import os
 import cv2
 import numpy as np
 import onnx
-import onnx.shape_inference
+import onnxruntime
 import onnxsim
 import torch
 
@@ -63,9 +63,21 @@ if __name__ == '__main__':
     )
 
     # Check exported onnx model
-    onnx_model = onnx.load(f)
+    onnx_model = onnx.load(output_path)
     onnx.checker.check_model(onnx_model)
-    onnx.shape_inference.infer_shapes_path(f, f)
+    onnx.shape_inference.infer_shapes_path(output_path, output_path)
+
+    # Test ONNX inference
+    try:
+        torch_out = model(img).numpy()
+        session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
+        onnx_out = session.run(None, {input_names[0]: img.numpy()})[0]
+        np.testing.assert_allclose(torch_out, onnx_out, rtol=1e-3, atol=1e-5)
+    except AssertionError as e:
+        print(e)
+        stdin = input('Do you want to ignore the error and proceed with the export ([y]/n)? ')
+        if stdin == 'n':
+            os.remove(output_path)
 
     # Simplify ONNX model
     if args.simplify:
