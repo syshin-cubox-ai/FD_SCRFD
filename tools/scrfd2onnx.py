@@ -22,9 +22,8 @@ def transform_image(img: np.ndarray, img_size: int) -> np.ndarray:
     if scale != 1:
         img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_LINEAR)
 
-    padded_img = np.zeros((img_size, img_size, 3), dtype=np.uint8)
-    padded_img[:img.shape[0], :img.shape[1], :] = img
-    img = cv2.dnn.blobFromImage(padded_img, 1 / 128, padded_img.shape[:2][::-1], (127.5, 127.5, 127.5), swapRB=True)
+    img = cv2.copyMakeBorder(img, 0, img_size - img.shape[0], 0, img_size - img.shape[1], cv2.BORDER_CONSTANT, value=(0, 0, 0))
+    img = cv2.dnn.blobFromImage(img, 1 / 128, img.shape[:2][::-1], (127.5, 127.5, 127.5), swapRB=True)
     return img
 
 
@@ -45,7 +44,7 @@ if __name__ == '__main__':
     # Define output file path
     output_dir = 'onnx'
     os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, os.path.basename(args.config).replace('.pt', '.onnx'))
+    output_path = os.path.join(output_dir, os.path.basename(args.config).replace('.py', '.onnx'))
 
     # Define input and output names
     input_names = ['img']
