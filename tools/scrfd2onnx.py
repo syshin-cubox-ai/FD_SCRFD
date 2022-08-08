@@ -22,7 +22,8 @@ def transform_image(img: np.ndarray, img_size: int) -> np.ndarray:
     if scale != 1:
         img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_LINEAR)
 
-    img = cv2.copyMakeBorder(img, 0, img_size - img.shape[0], 0, img_size - img.shape[1], cv2.BORDER_CONSTANT, value=(0, 0, 0))
+    pad = (0, img_size - img.shape[0], 0, img_size - img.shape[1])
+    img = cv2.copyMakeBorder(img, *pad, cv2.BORDER_CONSTANT, value=(0, 0, 0))
     img = cv2.dnn.blobFromImage(img, 1 / 128, img.shape[:2][::-1], (127.5, 127.5, 127.5), swapRB=True)
     return img
 
@@ -77,6 +78,7 @@ if __name__ == '__main__':
         stdin = input('Do you want to ignore the error and proceed with the export ([y]/n)? ')
         if stdin == 'n':
             os.remove(output_path)
+            exit(1)
 
     # Simplify ONNX model
     if args.simplify:
