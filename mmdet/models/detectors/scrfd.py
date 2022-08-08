@@ -89,7 +89,6 @@ class SCRFD(SingleStageDetector):
         bbox_list = []
         conf_list = []
         kps_list = []
-        # 이 코드는 다중 배치여도 이미지 1장만 처리함
         for idx, stride in enumerate([8, 16, 32]):
             # Create anchor grid (앵커 개수=2)
             height = torch.div(img.shape[2], stride, rounding_mode='floor')
@@ -100,6 +99,7 @@ class SCRFD(SingleStageDetector):
             anchor_centers = torch.stack([anchor_centers] * 2, dim=1).reshape((-1, 2)).to(torch.float32)
 
             # Post-process bbox, conf, kps
+            # 이 코드는 다중 배치여도 이미지 1장만 처리함
             bbox = pred[idx + 3][0] * stride
             bbox = self._distance2bbox(anchor_centers, bbox)
             bbox_list.append(bbox)
