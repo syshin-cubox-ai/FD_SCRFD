@@ -32,6 +32,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert MMDetection models to ONNX')
     parser.add_argument('config', help='config file path')
     parser.add_argument('checkpoint', help='checkpoint file path')
+    parser.add_argument('--dynamic', type=bool, default=False, help='use dynamic axes')
     parser.add_argument('--simplify', type=bool, default=True, help='use onnx-simplifier')
     args = parser.parse_args()
     print(args)
@@ -50,6 +51,12 @@ if __name__ == '__main__':
     # Define input and output names
     input_names = ['img']
     output_names = ['pred']
+    
+    # Define dynamic_axes
+    if args.dynamic:
+        dynamic_axes = {input_names[0]: {0: 'N', 2: 'H', 3: 'W'}}
+    else:
+        dynamic_axes = None
 
     # Export model into ONNX format
     torch.onnx.export(
@@ -59,7 +66,7 @@ if __name__ == '__main__':
         input_names=input_names,
         output_names=output_names,
         opset_version=11,  # only work with version 11
-        dynamic_axes={input_names[0]: {0: 'N', 2: 'H', 3: 'W'}},
+        dynamic_axes=dynamic_axes,
     )
 
     # Check exported onnx model
