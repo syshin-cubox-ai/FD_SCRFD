@@ -4,4 +4,4 @@ GPU=1
 GROUP=scrfd
 TASK=scrfd_2.5g_bnkps
 
-CUDA_VISIBLE_DEVICES="$GPU" python tools/scrfd2onnx.py ./configs/"$GROUP"/"$TASK".py ./work_dirs/"$TASK"/model.pth
+CUDA_VISIBLE_DEVICES="$GPU" python tools/scrfd2onnx.py ./configs/"$GROUP"/"$TASK".py ./work_dirs/"$TASK"/model.pth --simplify

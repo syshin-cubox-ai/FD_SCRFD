@@ -32,8 +32,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert MMDetection models to ONNX')
     parser.add_argument('config', help='config file path')
     parser.add_argument('checkpoint', help='checkpoint file path')
-    parser.add_argument('--dynamic', type=bool, default=False, help='use dynamic axes')
-    parser.add_argument('--simplify', type=bool, default=True, help='use onnx-simplifier')
+    parser.add_argument('--dynamic', action='store_true', help='use dynamic axes')
+    parser.add_argument('--simplify', action='store_true', help='use onnx-simplifier')
     args = parser.parse_args()
     print(args)
 
