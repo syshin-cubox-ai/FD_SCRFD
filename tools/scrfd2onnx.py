@@ -54,7 +54,8 @@ if __name__ == '__main__':
 
     # Define dynamic_axes
     if args.dynamic:
-        dynamic_axes = {input_names[0]: {0: 'N', 2: 'H', 3: 'W'}}
+        dynamic_axes = {input_names[0]: {2: 'H', 3: 'W'},
+                        output_names[0]: {0: 'Candidates', 1: 'dyn_15'}}
     else:
         dynamic_axes = None
 
