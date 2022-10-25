@@ -51,7 +51,7 @@ if __name__ == '__main__':
     # Define input and output names
     input_names = ['img']
     output_names = ['pred']
-    
+
     # Define dynamic_axes
     if args.dynamic:
         dynamic_axes = {input_names[0]: {0: 'N', 2: 'H', 3: 'W'}}
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     onnx.checker.check_model(onnx_model)
     onnx.shape_inference.infer_shapes_path(output_path, output_path)
 
-    # Test ONNX inference
+    # Compare output with torch model and ONNX model
     try:
         torch_out = model(img, force_onnx_export=True).detach().numpy()
         session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
