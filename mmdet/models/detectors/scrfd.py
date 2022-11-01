@@ -110,12 +110,15 @@ class SCRFD(SingleStageDetector):
                 kps = self._distance2kps(anchor_centers, kps)
                 kps_list.append(kps)
 
-        bbox = torch.cat(bbox_list, dim=0)
-        conf = torch.cat(conf_list, dim=0)
-        pred = torch.cat((bbox, conf), dim=1)
-        if len(kps_list) > 0:
+        if len(kps_list) == 0:
+            bbox = torch.cat(bbox_list, dim=0)
+            conf = torch.cat(conf_list, dim=0)
+            pred = torch.cat((bbox, conf), dim=1)
+        else:
+            bbox = torch.cat(bbox_list, dim=0)
+            conf = torch.cat(conf_list, dim=0)
             kps = torch.cat(kps_list, dim=0)
-            pred = torch.cat((pred, kps), dim=1)
+            pred = torch.cat((bbox, conf, kps), dim=1)
         order = conf.reshape(-1).sort(descending=True)[1]
         pred = pred[order, :]
         return pred
