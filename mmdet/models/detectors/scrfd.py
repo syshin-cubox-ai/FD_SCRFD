@@ -119,8 +119,8 @@ class SCRFD(SingleStageDetector):
             conf = torch.cat(conf_list, dim=0)
             kps = torch.cat(kps_list, dim=0)
             pred = torch.cat((bbox, conf, kps), dim=1)
-        order = conf.reshape(-1).sort(descending=True)[1]
-        pred = pred[order, :]
+        # order = conf.reshape(-1).topk(200)[1]
+        # pred = pred[order, :]
         return pred
 
     def _distance2bbox(self, points: torch.Tensor, distance: torch.Tensor) -> torch.Tensor:
