@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import onnx
 import onnxruntime
+import onnxruntime.tools.symbolic_shape_infer
 import onnxsim
 import torch
 
@@ -66,13 +67,18 @@ if __name__ == '__main__':
         output_path,
         input_names=input_names,
         output_names=output_names,
-        opset_version=11,  # only work with version 11
+        opset_version=12,
         dynamic_axes=dynamic_axes,
     )
 
     # Check exported onnx model
     onnx_model = onnx.load(output_path)
     onnx.checker.check_model(onnx_model)
+    try:
+        onnx_model = onnxruntime.tools.symbolic_shape_infer.SymbolicShapeInference.infer_shapes(onnx_model)
+        onnx.save(onnx_model, output_path)
+    except Exception as e:
+        print(f'ERROR: {e}, skip symbolic shape inference.')
     onnx.shape_inference.infer_shapes_path(output_path, output_path)
 
     # Compare output with torch model and ONNX model
