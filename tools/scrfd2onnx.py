@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('config', help='config file path')
     parser.add_argument('checkpoint', help='checkpoint file path')
     parser.add_argument('--dynamic', action='store_true', help='use dynamic axes')
-    parser.add_argument('--simplify', action='store_true', help='use onnx-simplifier')
+    parser.add_argument('--skip_simplify', action='store_true', help='skip onnx-simplifier')
     args = parser.parse_args()
     print(args)
 
@@ -95,7 +95,7 @@ if __name__ == '__main__':
             exit(1)
 
     # Simplify ONNX model
-    if args.simplify:
+    if not args.skip_simplify:
         model = onnx.load(output_path)
         input_shapes = {model.graph.input[0].name: img.shape}
         model, check = onnxsim.simplify(model, test_input_shapes=input_shapes)
