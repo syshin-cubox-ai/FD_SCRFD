@@ -35,11 +35,6 @@ def resize_preserving_aspect_ratio(img: np.ndarray, img_size: int, scale_ratio=1
 
 
 def transform_image(img: np.ndarray, img_size: int) -> np.ndarray:
-    """
-    Resizes the input image to fit img_size while maintaining aspect ratio.
-    This performs BGR to RGB, HWC to CHW, normalization, and adding batch dimension.
-    (mean=(127.5, 127.5, 127.5), std=(128.0, 128.0, 128.0))
-    """
     img, _ = resize_preserving_aspect_ratio(img, img_size)
 
     pad = (0, img_size - img.shape[0], 0, img_size - img.shape[1])
@@ -58,8 +53,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
 
-    # Create model and input data
+    # Create torch model
     model = mmdet.core.build_model_from_cfg(args.config, args.checkpoint)
+
+    # Create input data
     img = cv2.imread('tests/data/2.jpg')
     img = transform_image(img, check_img_size(args.img_size, 32))
     img = torch.from_numpy(img)
@@ -102,10 +99,10 @@ if __name__ == '__main__':
     onnx.shape_inference.infer_shapes_path(output_path, output_path)
 
     # Compare output with torch model and ONNX model
+    torch_out = model(img, force_onnx_export=True).detach().numpy()
+    session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
+    onnx_out = session.run(None, {input_names[0]: img.numpy()})[0]
     try:
-        torch_out = model(img, force_onnx_export=True).detach().numpy()
-        session = onnxruntime.InferenceSession(output_path, providers=['CPUExecutionProvider'])
-        onnx_out = session.run(None, {input_names[0]: img.numpy()})[0]
         np.testing.assert_allclose(torch_out, onnx_out, rtol=1e-3, atol=1e-5)
     except AssertionError as e:
         print(e)
