@@ -1,5 +1,6 @@
 import argparse
 import os
+from typing import Tuple
 
 import cv2
 import numpy as np
@@ -11,16 +12,23 @@ import torch
 import mmdet.core
 
 
+def resize_preserving_aspect_ratio(img: np.ndarray, img_size: int, scale_ratio=1.0) -> Tuple[np.ndarray, float]:
+    # Resize preserving aspect ratio. scale_ratio is the scaling ratio of the img_size.
+    h, w = img.shape[:2]
+    scale = img_size // scale_ratio / max(h, w)
+    if scale != 1:
+        interpolation = cv2.INTER_AREA if scale < 1 else cv2.INTER_LINEAR
+        img = cv2.resize(img, None, fx=scale, fy=scale, interpolation=interpolation)
+    return img, scale
+
+
 def transform_image(img: np.ndarray, img_size: int) -> np.ndarray:
     """
     Resizes the input image to fit img_size while maintaining aspect ratio.
     This performs BGR to RGB, HWC to CHW, normalization, and adding batch dimension.
     (mean=(127.5, 127.5, 127.5), std=(128.0, 128.0, 128.0))
     """
-    h, w = img.shape[:2]
-    scale = img_size / max(h, w)
-    if scale != 1:
-        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_LINEAR)
+    img, _ = resize_preserving_aspect_ratio(img, img_size)
 
     pad = (0, img_size - img.shape[0], 0, img_size - img.shape[1])
     img = cv2.copyMakeBorder(img, *pad, cv2.BORDER_CONSTANT, value=(0, 0, 0))
