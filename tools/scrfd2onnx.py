@@ -12,6 +12,18 @@ import torch
 import mmdet.core
 
 
+def check_img_size(imgsz, s=32, floor=0):
+    # Verify image size is a multiple of stride s in each dimension
+    if isinstance(imgsz, int):  # integer i.e. img_size=640
+        new_size = max(make_divisible(imgsz, int(s)), floor)
+    else:  # list i.e. img_size=[640, 480]
+        imgsz = list(imgsz)  # convert to list if tuple
+        new_size = [max(make_divisible(x, int(s)), floor) for x in imgsz]
+    if new_size != imgsz:
+        print(f'WARNING: img_size {imgsz} must be multiple of max stride {s}, updating to {new_size}')
+    return new_size
+
+
 def resize_preserving_aspect_ratio(img: np.ndarray, img_size: int, scale_ratio=1.0) -> Tuple[np.ndarray, float]:
     # Resize preserving aspect ratio. scale_ratio is the scaling ratio of the img_size.
     h, w = img.shape[:2]
@@ -40,6 +52,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert MMDetection models to ONNX')
     parser.add_argument('config', help='config file path')
     parser.add_argument('checkpoint', help='checkpoint file path')
+    parser.add_argument('--img_size', type=int, default=640, help='image size')
     parser.add_argument('--dynamic', action='store_true', help='use dynamic axes')
     parser.add_argument('--skip_simplify', action='store_true', help='skip onnx-simplifier')
     args = parser.parse_args()
@@ -48,7 +61,7 @@ if __name__ == '__main__':
     # Create model and input data
     model = mmdet.core.build_model_from_cfg(args.config, args.checkpoint)
     img = cv2.imread('tests/data/2.jpg')
-    img = transform_image(img, 640)
+    img = transform_image(img, check_img_size(args.img_size, 32))
     img = torch.from_numpy(img)
 
     # Define output file path
