@@ -3,8 +3,7 @@ import os
 
 import cv2
 import numpy as np
-import onnx
-import onnxruntime
+import onnx.shape_inference
 import onnxruntime.tools.symbolic_shape_infer
 import onnxsim
 import torch
@@ -45,7 +44,7 @@ if __name__ == '__main__':
     img = torch.from_numpy(img)
 
     # Define output file path
-    output_dir = 'onnx'
+    output_dir = 'onnx_files'
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, os.path.basename(args.config).replace('.py', '.onnx'))
 

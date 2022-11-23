@@ -2,7 +2,7 @@
 .idea/
 .vscode/
 data/retinaface/
-onnx/
+onnx_files/
 tests/
 work_dirs/
 wouts/
