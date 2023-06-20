@@ -119,8 +119,22 @@ class SCRFD(SingleStageDetector):
             conf = torch.cat(conf_list, dim=0)
             kps = torch.cat(kps_list, dim=0)
             pred = torch.cat((bbox, conf, kps), dim=1)
+
+        # TopK
         # order = conf.reshape(-1).topk(200)[1]
         # pred = pred[order, :]
+
+        # NMS
+        # keep = torch.nonzero(conf.squeeze(1) > 0.3).squeeze(1)
+        # bbox = bbox[keep]
+        # conf = conf[keep]
+        # kps = kps[keep]
+        # import torchvision
+        # keep = torchvision.ops.nms(bbox, conf.squeeze(1), 0.5)
+        # bbox = bbox[keep]
+        # conf = conf[keep]
+        # kps = kps[keep]
+        # pred = torch.cat((bbox, conf, kps), dim=1)
         return pred
 
     def _distance2bbox(self, points: torch.Tensor, distance: torch.Tensor) -> torch.Tensor:
