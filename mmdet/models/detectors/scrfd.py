@@ -85,6 +85,9 @@ class SCRFD(SingleStageDetector):
         # ['score_8', 'score_16', 'score_32', 'bbox_8', 'bbox_16', 'bbox_32'] 또는
         # ['score_8', 'score_16', 'score_32', 'bbox_8', 'bbox_16', 'bbox_32', 'kps_8', 'kps_16', 'kps_32']
 
+        # 원본 insightface scrfd 모델과 출력을 일치시키려면 여기서 return하면 된다.
+        # return pred
+
         # Post-forward
         bbox_list = []
         conf_list = []
