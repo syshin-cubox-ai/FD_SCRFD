@@ -170,7 +170,8 @@ class SCRFD(SingleStageDetector):
         """
         x = self.extract_feat(img)
         outs = self.bbox_head(x)
-        bbox_list = self.bbox_head.get_bboxes(*outs, img_metas, rescale=rescale)
+        cls_scores, bbox_preds = outs[0], outs[1]
+        bbox_list = self.bbox_head.get_bboxes(cls_scores, bbox_preds, img_metas, rescale=rescale)
         bbox_results = [
             bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
             for det_bboxes, det_labels in bbox_list
